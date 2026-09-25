@@ -13,7 +13,10 @@ class LoginController extends Controller
 {
     public function showLogin()
     {
-        return view('auth.login');
+    $backgrounds = ['bg-1.jpg', 'bg-2.jpg', 'bg-3.jpg']; // tambah nama file sesuai jumlah fotomu
+    $bgImage = $backgrounds[array_rand($backgrounds)];
+
+    return view('auth.login', ['bgImage' => $bgImage]);
     }
 
     public function login(Request $request)

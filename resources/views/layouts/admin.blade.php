@@ -6,12 +6,13 @@
     <title>@yield('title', 'Admin')</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      tailwind.config = { theme: { extend: { colors: { brand: {
-        bg: '#F5F9FE', card: '#FFFFFF', soft: '#B5D4F4',
-        DEFAULT: '#378ADD', dark: '#185FA5', deep: '#042C53',
-        accent: '#85B7EB', warm: '#F0A93B',
-        purple: '#7C5CFC', rose: '#F0507E',
-      }}}}}
+      tailwind.config = { theme: { extend: { colors: {
+        brand: {
+        bg: '#0B0F17', card: '#161F30', border: '#2A3348',
+        DEFAULT: '#2F6FED', dark: '#1E56C8', deep: '#FFFFFF', accent: '#3B82F6', warm: '#FF7A29',
+        },
+        stat: { green: '#22C55E', greenBg: 'rgba(34,197,94,.12)', rose: '#EF4444', roseBg: 'rgba(239,68,68,.12)', amber: '#D97706', amberBg: 'rgba(217,119,6,.12)' },
+        }}}}
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
