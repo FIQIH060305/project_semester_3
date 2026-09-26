@@ -27,7 +27,21 @@
                 <div class="flex items-center justify-between gap-4 p-4 rounded-2xl border border-brand-border hover:border-brand/30 hover:shadow-sm transition bg-white">
                     <div class="flex items-center gap-4 min-w-0">
                         <div class="w-16 h-16 rounded-xl bg-brand-bg border border-brand-border flex items-center justify-center overflow-hidden shrink-0">
-                            @if ($konten->thumbnail)
+                            @php
+                                $ytThumbnail = null;
+                                if ($konten->url_video_youtube && in_array($konten->tipe_konten, ['video_olahraga', 'video_resep'])) {
+                                    preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $konten->url_video_youtube, $matches);
+                                    if (isset($matches[1])) {
+                                        $ytThumbnail = 'https://img.youtube.com/vi/' . $matches[1] . '/hqdefault.jpg';
+                                    }
+                                }
+                            @endphp
+
+                            @if ($ytThumbnail)
+                                <!-- Thumbnail Otomatis dari YouTube -->
+                                <img src="{{ $ytThumbnail }}" class="w-full h-full object-cover">
+                            @elseif ($konten->thumbnail)
+                                <!-- Thumbnail dari Upload (Artikel) -->
                                 <img src="{{ asset('storage/' . $konten->thumbnail) }}" class="w-full h-full object-cover">
                             @else
                                 <span class="text-gray-400 text-[10px] font-bold uppercase">No Image</span>
@@ -44,7 +58,7 @@
                         </div>
                     </div>
 
-                    <!-- Tombol Aksi Menonjol -->
+                    <!-- Tombol Aksi -->
                     <div class="flex items-center gap-2 shrink-0">
                         <!-- Tombol Edit (Biru) -->
                         <a href="{{ route('admin.konten.edit', $konten->id_konten) }}" 
@@ -56,10 +70,9 @@
                         </a>
 
                         <!-- Tombol Hapus (Merah) -->
-                        <form action="{{ route('admin.konten.destroy', $konten->id_konten) }}" method="POST"
-                              onsubmit="return confirm('Apakah Anda yakin ingin menghapus konten ini?')">
+                        <form id="deleteForm-{{ $konten->id_konten }}" action="{{ route('admin.konten.destroy', $konten->id_konten) }}" method="POST" class="inline">
                             @csrf
-                            <button type="submit" 
+                            <button type="button" onclick="openDeleteModal('{{ $konten->id_konten }}', '{{ addslashes($konten->judul) }}')"
                                     class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-sm shadow-red-500/20 transition active:scale-95">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -141,8 +154,9 @@
                 <p class="text-[10px] text-gray-400 mt-1">Pembaca dapat membaca artikel langsung di dalam aplikasi.</p>
             </div>
 
-            <div>
-                <label class="block text-xs font-bold text-gray-700 mb-1.5">Thumbnail Gambar</label>
+            <!-- Field Thumbnail Gambar (Hanya untuk Artikel) -->
+            <div id="fieldThumbnail" class="hidden">
+                <label class="block text-xs font-bold text-gray-700 mb-1.5">Thumbnail Gambar Artikel</label>
                 <input type="file" name="thumbnail" accept="image/*"
                        class="w-full bg-brand-bg border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold text-gray-600 focus:outline-none focus:border-brand transition">
                 <p class="text-[10px] text-gray-400 mt-1">Format JPG, PNG, JPEG (Maksimal 2MB).</p>
@@ -155,18 +169,46 @@
     </div>
 </div>
 
+<!-- Modal Konfirmasi Hapus -->
+<div id="deleteModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
+        <div class="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+        </div>
+        <h3 class="text-base font-extrabold text-gray-800 mb-2">Hapus Konten Ini?</h3>
+        <p class="text-sm text-gray-500 mb-6">
+            Konten <span id="deleteModalJudul" class="font-semibold text-gray-700"></span> akan dihapus permanen dan tidak bisa dikembalikan.
+        </p>
+        <div class="flex gap-3">
+            <button type="button" onclick="closeDeleteModal()"
+                    class="flex-1 py-3 rounded-xl border border-brand-border text-gray-600 font-bold text-sm hover:bg-gray-50 transition">
+                Batal
+            </button>
+            <button type="button" onclick="confirmDelete()"
+                    class="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm transition">
+                Ya, Hapus
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 const tipeSelect = document.getElementById('tipeKonten');
 const fieldYoutube = document.getElementById('fieldYoutube');
 const fieldArtikel = document.getElementById('fieldArtikel');
+const fieldThumbnail = document.getElementById('fieldThumbnail');
 
 function toggleFields() {
     if (tipeSelect.value === 'artikel') {
         fieldYoutube.classList.add('hidden');
         fieldArtikel.classList.remove('hidden');
+        fieldThumbnail.classList.remove('hidden'); // Tampilkan thumbnail untuk Artikel
     } else {
         fieldYoutube.classList.remove('hidden');
         fieldArtikel.classList.add('hidden');
+        fieldThumbnail.classList.add('hidden'); // Sembunyikan thumbnail untuk Video Olahraga & Resep
     }
 }
 tipeSelect.addEventListener('change', toggleFields);
@@ -185,6 +227,32 @@ document.getElementById('ytInput').addEventListener('input', function () {
         wrap.classList.add('hidden');
         iframe.src = '';
     }
+});
+
+// ===== Modal konfirmasi hapus =====
+let formIdToDelete = null;
+
+function openDeleteModal(id, judul) {
+    formIdToDelete = id;
+    document.getElementById('deleteModalJudul').textContent = '"' + judul + '"';
+    document.getElementById('deleteModal').classList.remove('hidden');
+    document.getElementById('deleteModal').classList.add('flex');
+}
+
+function closeDeleteModal() {
+    formIdToDelete = null;
+    document.getElementById('deleteModal').classList.add('hidden');
+    document.getElementById('deleteModal').classList.remove('flex');
+}
+
+function confirmDelete() {
+    if (formIdToDelete) {
+        document.getElementById('deleteForm-' + formIdToDelete).submit();
+    }
+}
+
+document.getElementById('deleteModal').addEventListener('click', function (e) {
+    if (e.target === this) closeDeleteModal();
 });
 </script>
 @endsection

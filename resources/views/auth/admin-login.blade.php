@@ -60,19 +60,19 @@
             @csrf
             
             <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1">Email Administrator</label>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Email</label>
                 <input 
                     type="email" 
                     name="email" 
                     value="{{ old('email') }}" 
                     required 
-                    placeholder="admin@gerak.com"
+                    placeholder="Masukkan email"
                     class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand focus:bg-white transition"
                 >
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-gray-700 mb-1">Password Admin</label>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Password</label>
                 <input 
                     type="password" 
                     name="password" 

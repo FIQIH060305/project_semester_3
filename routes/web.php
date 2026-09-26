@@ -57,6 +57,9 @@ Route::prefix('admin')->name('admin.')->middleware('is.admin')->group(function (
     
     Route::get('/olahraga/jadwal', [KelolaOlahragaController::class, 'index'])->name('olahraga.jadwal');
     Route::post('/olahraga/jadwal', [KelolaOlahragaController::class, 'store'])->name('olahraga.jadwal.store');
+    Route::get('/olahraga/jadwal/{id}/edit', [KelolaOlahragaController::class, 'edit'])->name('olahraga.jadwal.edit');           
+Route::put('/olahraga/jadwal/{id}', [KelolaOlahragaController::class, 'update'])->name('olahraga.jadwal.update');         
+Route::post('/olahraga/jadwal/{id}/hapus', [KelolaOlahragaController::class, 'destroy'])->name('olahraga.jadwal.destroy');   
 
     Route::get('/rekapan', [RekapitulasiController::class, 'index'])->name('rekapan.index');
 });

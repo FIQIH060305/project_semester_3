@@ -30,9 +30,27 @@
                     onclick="bukaKontenElement(this)"
                     class="konten-card text-left bg-white rounded-2xl overflow-hidden border border-brand-border hover:border-brand transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg hover:shadow-brand/10">
             <div class="h-36 bg-gray-100 relative group">
-            @if ($konten->thumbnail)
-            <img src="{{ asset('storage/' . $konten->thumbnail) }}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
-         @endif
+            
+            {{-- AWAL LOGIKA THUMBNAIL DINAMIS --}}
+            @php
+                $ytThumbnail = null;
+                if ($konten->url_video_youtube && in_array($konten->tipe_konten, ['video_olahraga', 'video_resep'])) {
+                    preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $konten->url_video_youtube, $matches);
+                    if (isset($matches[1])) {
+                        $ytThumbnail = 'https://img.youtube.com/vi/' . $matches[1] . '/hqdefault.jpg';
+                    }
+                }
+            @endphp
+
+            @if ($ytThumbnail)
+                <img src="{{ $ytThumbnail }}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" alt="{{ $konten->judul }}">
+            @elseif ($konten->thumbnail)
+                <img src="{{ asset('storage/' . $konten->thumbnail) }}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" alt="{{ $konten->judul }}">
+            @else
+                <div class="w-full h-full flex items-center justify-center text-gray-400 text-xs font-bold">No Image</div>
+            @endif
+            {{-- AKHIR LOGIKA THUMBNAIL DINAMIS --}}
+
         @if ($konten->url_video_youtube)
             <div class="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors">
                 <div class="w-9 h-9 rounded-full bg-white/90 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
