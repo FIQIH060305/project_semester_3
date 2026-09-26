@@ -98,7 +98,15 @@
         const bgImages = [
             "{{ asset('assets/images/backgrounds/bg-1.jpg') }}",
             "{{ asset('assets/images/backgrounds/bg-2.jpg') }}",
-            "{{ asset('assets/images/backgrounds/bg-3.jpg') }}"
+            "{{ asset('assets/images/backgrounds/bg-3.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-4.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-5.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-6.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-7.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-8.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-9.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-10.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-11.jpg') }}"
         ];
 
         let currentIndex = 0;
