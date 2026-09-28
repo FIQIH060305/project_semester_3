@@ -16,10 +16,13 @@
 </head>
 <body class="min-h-screen relative overflow-x-hidden flex items-center justify-center">
 
-    <!-- Background dengan Auto-Slide & Fallback -->
-    <div id="bgContainer" 
-         class="fixed inset-0 -z-10 bg-cover bg-center transition-all duration-1000 ease-in-out"
-         style="background-image: url('{{ asset('assets/images/backgrounds/' . ($bgImage ?? 'bg1.jpg')) }}');">
+    <!-- Container Background Dual Layer untuk Crossfade Transition -->
+    <div id="bgLayer1" 
+         class="fixed inset-0 -z-20 bg-cover bg-center transition-opacity duration-1000 ease-in-out opacity-100"
+         style="background-image: url('{{ asset('assets/images/backgrounds/' . ($bgImage ?? 'bg-1.jpg')) }}');">
+    </div>
+    <div id="bgLayer2" 
+         class="fixed inset-0 -z-10 bg-cover bg-center transition-opacity duration-1000 ease-in-out opacity-0">
     </div>
 
     <!-- Overlay gelap -->
@@ -95,6 +98,7 @@
             input.type = input.type === 'password' ? 'text' : 'password';
         }
 
+        // List gambar terurut rapi dari 1 s/d 15
         const bgImages = [
             "{{ asset('assets/images/backgrounds/bg-1.jpg') }}",
             "{{ asset('assets/images/backgrounds/bg-2.jpg') }}",
@@ -106,19 +110,54 @@
             "{{ asset('assets/images/backgrounds/bg-8.jpg') }}",
             "{{ asset('assets/images/backgrounds/bg-9.jpg') }}",
             "{{ asset('assets/images/backgrounds/bg-10.jpg') }}",
-            "{{ asset('assets/images/backgrounds/bg-11.jpg') }}"
+            "{{ asset('assets/images/backgrounds/bg-11.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-12.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-13.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-14.jpg') }}",
+            "{{ asset('assets/images/backgrounds/bg-15.jpg') }}"
         ];
 
+        // Preload seluruh gambar agar saat transisi tidak berpendar/blank
+        bgImages.forEach(src => {
+            const img = new Image();
+            img.src = src;
+        });
+
         let currentIndex = 0;
-        const bgContainer = document.getElementById('bgContainer');
+        let activeLayer = 1;
+
+        const bgLayer1 = document.getElementById('bgLayer1');
+        const bgLayer2 = document.getElementById('bgLayer2');
 
         function changeBackground() {
-            if (bgImages.length > 0) {
-                bgContainer.style.backgroundImage = `url('${bgImages[currentIndex]}')`;
-                currentIndex = (currentIndex + 1) % bgImages.length;
+            if (bgImages.length <= 1) return;
+
+            // Indeks gambar selanjutnya secara berurutan
+            currentIndex = (currentIndex + 1) % bgImages.length;
+            const nextImageUrl = bgImages[currentIndex];
+
+            if (activeLayer === 1) {
+                // Siapkan layer 2 dengan gambar baru
+                bgLayer2.style.backgroundImage = `url('${nextImageUrl}')`;
+                // Crossfade: Layer 2 Muncul, Layer 1 Menghilang
+                bgLayer2.classList.remove('opacity-0');
+                bgLayer2.classList.add('opacity-100');
+                bgLayer1.classList.remove('opacity-100');
+                bgLayer1.classList.add('opacity-0');
+                activeLayer = 2;
+            } else {
+                // Siapkan layer 1 dengan gambar baru
+                bgLayer1.style.backgroundImage = `url('${nextImageUrl}')`;
+                // Crossfade: Layer 1 Muncul, Layer 2 Menghilang
+                bgLayer1.classList.remove('opacity-0');
+                bgLayer1.classList.add('opacity-100');
+                bgLayer2.classList.remove('opacity-100');
+                bgLayer2.classList.add('opacity-0');
+                activeLayer = 1;
             }
         }
 
+        // Eksekusi pemindahan gambar setiap 5 detik
         setInterval(changeBackground, 5000);
     </script>
 </body>

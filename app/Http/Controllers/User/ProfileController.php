@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Target;
+use App\Support\Antropometri;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -30,9 +31,9 @@ class ProfileController extends Controller
         $akun = Auth::guard('web')->user();
 
         $validated = $request->validate([
-            'tinggi_badan'   => ['required', 'numeric', 'min:140', 'max:200'],
-            'berat_badan'    => ['required', 'numeric', 'min:30', 'max:250'],
-            'berat_target'   => ['required', 'numeric', 'min:30', 'max:250', 'lt:berat_badan'],
+            'tinggi_badan' => ['required', 'numeric', 'min:140', 'max:200'],
+            'berat_badan'  => ['required', 'numeric', 'min:50', 'max:200'],
+            'berat_target' => ['required', 'numeric', 'lt:berat_badan'],
         ], [
             'tinggi_badan.required' => 'Tinggi badan wajib diisi.',
             'tinggi_badan.numeric' => 'Tinggi badan harus berupa angka, contoh: 170 (bukan huruf atau simbol).',
@@ -41,38 +42,39 @@ class ProfileController extends Controller
 
             'berat_badan.required' => 'Berat badan wajib diisi.',
             'berat_badan.numeric' => 'Berat badan harus berupa angka, contoh: 80 (bukan huruf atau simbol).',
-            'berat_badan.min' => 'Berat badan minimal 80 kg. Mohon periksa kembali angka yang diketik.',
+            'berat_badan.min' => 'Berat badan minimal 50 kg. Mohon periksa kembali angka yang diketik.',
             'berat_badan.max' => 'Berat badan maksimal 200 kg. Sepertinya ada angka yang salah ketik atau kelebihan digit.',
 
             'berat_target.required' => 'Target berat badan wajib diisi.',
-            'berat_target.numeric' => 'Target berat badan harus berupa angka.',
-            'berat_target.min' => 'Target berat badan minimal 50 kg.',
-            'berat_target.max' => 'Target berat badan maksimal 70 kg.',
+            'berat_target.numeric' => 'Target berat badan harus berupa angka, contoh: 70 (bukan huruf atau simbol).',
             'berat_target.lt' => 'Target berat badan harus lebih kecil dari berat badan sekarang (aplikasi ini fokus untuk penurunan berat badan).',
         ]);
 
-        $akun->update(['tinggi_badan' => $validated['tinggi_badan']]);
+        $tinggi = (float) $validated['tinggi_badan'];
+        $berat  = (float) $validated['berat_badan'];
+        $target = (float) $validated['berat_target'];
 
-        $tinggiMeter = $validated['tinggi_badan'] / 100;
-        $bmi = round($validated['berat_badan'] / ($tinggiMeter * $tinggiMeter), 1);
+        // Validasi berbasis IMT (Kemenkes): target tidak boleh membuat IMT < 18,5
+        Antropometri::pastikanTargetWajar($tinggi, $berat, $target, 'berat_target');
+
+        $akun->update(['tinggi_badan' => $tinggi]);
 
         $akun->riwayatBeratBadan()->create([
-            'berat_badan' => $validated['berat_badan'],
-            'bmi' => $bmi,
+            'berat_badan' => $berat,
+            'bmi' => Antropometri::imt($berat, $tinggi),
             'tanggal_pencatatan' => today(),
         ]);
 
+        // berat_awal hanya diisi sekali saat target pertama dibuat, tidak pernah ditimpa
         $targetAktif = $akun->targetAktif;
 
         if ($targetAktif) {
-            $targetAktif->update([
-                'berat_target' => $validated['berat_target'],
-            ]);
+            $targetAktif->update(['berat_target' => $target]);
         } else {
             Target::create([
                 'id_akun' => $akun->id_akun,
-                'berat_awal' => $validated['berat_badan'],
-                'berat_target' => $validated['berat_target'],
+                'berat_awal' => $berat,
+                'berat_target' => $target,
                 'tanggal_mulai' => today(),
                 'status' => 'aktif',
             ]);

@@ -8,15 +8,15 @@ use App\Models\Target;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+use App\Support\Antropometri;
 
 class LoginController extends Controller
 {
     public function showLogin()
     {
-    $backgrounds = ['bg-1.jpg', 'bg-2.jpg', 'bg-3.jpg']; // tambah nama file sesuai jumlah fotomu
-    $bgImage = $backgrounds[array_rand($backgrounds)];
-
-    return view('auth.login', ['bgImage' => $bgImage]);
+        // Mengirimkan bg-1.jpg secara default karena giliran slideshow dijalankan lewat JS di Blade
+        return view('auth.login', ['bgImage' => 'bg-1.jpg']);
     }
 
     public function login(Request $request)
@@ -61,32 +61,31 @@ class LoginController extends Controller
 
     public function register(Request $request)
     {
+        $validated = $request->validate([
+            'nama_lengkap' => ['required', 'string', 'max:100', 'regex:/^[\pL\s]+$/u'],
+            'email' => ['required', 'email:rfc,dns', 'max:100', 'unique:akun,email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ], [
+            'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
+            'nama_lengkap.max' => 'Nama lengkap maksimal 100 karakter.',
+            'nama_lengkap.regex' => 'Nama lengkap hanya boleh berisi huruf dan spasi, tidak boleh ada angka atau simbol.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid, contoh: nama@gmail.com. Pastikan nama domainnya benar.',
+            'email.unique' => 'Email ini sudah terdaftar. Silakan gunakan email lain atau masuk ke akun kamu.',
+            'password.required' => 'Password wajib diisi.',
+            'password.min' => 'Password minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok dengan password di atas.',
+        ]);
 
-    $validated = $request->validate([
-        'nama_lengkap' => ['required', 'string', 'max:100', 'regex:/^[\pL\s]+$/u'],
-        'email' => ['required', 'email:rfc,dns', 'max:100', 'unique:akun,email'],
-        'password' => ['required', 'string', 'min:8', 'confirmed'],
-    ], [
-        'nama_lengkap.required' => 'Nama lengkap wajib diisi.',
-        'nama_lengkap.max' => 'Nama lengkap maksimal 100 karakter.',
-        'nama_lengkap.regex' => 'Nama lengkap hanya boleh berisi huruf dan spasi, tidak boleh ada angka atau simbol.',
-        'email.required' => 'Email wajib diisi.',
-        'email.email' => 'Format email tidak valid, contoh: nama@gmail.com. Pastikan nama domainnya benar (gmail.com, bukan gmail.com123).',
-        'email.unique' => 'Email ini sudah terdaftar. Silakan gunakan email lain atau masuk ke akun kamu.',
-        'password.required' => 'Password wajib diisi.',
-        'password.min' => 'Password minimal 8 karakter.',
-        'password.confirmed' => 'Konfirmasi password tidak cocok dengan password di atas.',
-    ]);
+        session([
+            'registrasi_data' => [
+                'nama_lengkap' => $validated['nama_lengkap'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+            ],
+        ]);
 
-    session([
-        'registrasi_data' => [
-            'nama_lengkap' => $validated['nama_lengkap'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-        ],
-    ]);
-
-    return redirect()->route('complete-profile');
+        return redirect()->route('complete-profile');
     }
 
     public function showCompleteProfile()
@@ -107,32 +106,44 @@ class LoginController extends Controller
         }
 
         $validated = $request->validate([
-            'usia' => ['required', 'integer', 'min:15', 'max:65'],
+            'usia' => ['required', 'integer', 'min:19', 'max:65'],
             'jenis_kelamin' => ['required', 'in:L,P'],
             'tinggi_badan' => ['required', 'numeric', 'min:140', 'max:200'],
-            'berat_badan' => ['required', 'numeric', 'min:80', 'max:200'],
-            'target_berat' => ['required', 'numeric', 'min:50', 'max:70', 'lt:berat_badan'],
+            'berat_badan' => ['required', 'numeric', 'min:30', 'max:250'],
+            'target_berat' => ['required', 'numeric', 'lt:berat_badan'],
         ], [
             'usia.required' => 'Usia wajib diisi.',
-            'usia.integer' => 'Usia harus berupa angka bulat, contoh: 25 (bukan huruf atau desimal).',
-            'usia.min' => 'Usia minimal 15 tahun. Aplikasi ini ditujukan untuk remaja akhir dan dewasa.',
-            'usia.max' => 'Usia maksimal 65 tahun, sesuai rentang usia dewasa produktif menurut Kemenkes RI.',
+            'usia.integer' => 'Usia harus berupa angka bulat, contoh: 25.',
+            'usia.min' => 'Usia minimal 19 tahun. Aplikasi ini ditujukan untuk usia dewasa.',
+            'usia.max' => 'Usia maksimal 65 tahun, sesuai rentang usia dewasa produktif.',
             'jenis_kelamin.required' => 'Jenis kelamin wajib dipilih.',
             'jenis_kelamin.in' => 'Jenis kelamin tidak valid.',
             'tinggi_badan.required' => 'Tinggi badan wajib diisi.',
-            'tinggi_badan.numeric' => 'Tinggi badan harus berupa angka, contoh: 170 (bukan huruf).',
-            'tinggi_badan.min' => 'Tinggi badan minimal 140 cm. Mohon periksa kembali data yang diinput.',
-            'tinggi_badan.max' => 'Tinggi badan maksimal 200 cm. Mohon periksa kembali data yang diinput.',
+            'tinggi_badan.numeric' => 'Tinggi badan harus berupa angka, contoh: 170.',
+            'tinggi_badan.min' => 'Tinggi badan minimal 140 cm.',
+            'tinggi_badan.max' => 'Tinggi badan maksimal 200 cm.',
             'berat_badan.required' => 'Berat badan wajib diisi.',
-            'berat_badan.numeric' => 'Berat badan harus berupa angka, contoh: 70 (bukan huruf).',
-            'berat_badan.min' => 'Berat badan minimal 80 kg. Mohon periksa kembali data yang diinput.',
-            'berat_badan.max' => 'Berat badan maksimal 200 kg. Mohon periksa kembali data yang diinput.',
+            'berat_badan.numeric' => 'Berat badan harus berupa angka, contoh: 80.',
+            'berat_badan.min' => 'Berat badan minimal 30 kg.',
+            'berat_badan.max' => 'Berat badan maksimal 250 kg.',
             'target_berat.required' => 'Target berat badan wajib diisi.',
-            'target_berat.numeric' => 'Target berat badan harus berupa angka.',
-            'target_berat.min' => 'Target berat badan minimal 50 kg.',
-            'target_berat.max' => 'Target berat badan maksimal 70 kg.',
-            'target_berat.lt' => 'Target berat badan harus lebih kecil dari berat badan sekarang (aplikasi ini fokus untuk penurunan berat badan).',
+            'target_berat.numeric' => 'Target berat badan harus berupa angka, contoh: 70.',
+            'target_berat.lt' => 'Target berat badan harus lebih kecil dari berat badan sekarang.',
         ]);
+
+        // Penanganan error Antropometri secara aman agar dapat menampilkan error Blade dengan benar
+        try {
+            Antropometri::pastikanTargetWajar(
+                (float) $validated['tinggi_badan'],
+                (float) $validated['berat_badan'],
+                (float) $validated['target_berat'],
+                'target_berat'
+            );
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages([
+                'target_berat' => $e->getMessage(),
+            ]);
+        }
 
         $dataAkun = session('registrasi_data');
 

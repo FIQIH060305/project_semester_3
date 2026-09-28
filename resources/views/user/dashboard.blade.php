@@ -64,6 +64,76 @@
     </div>
 </div>
 
+<!-- ===== STATISTIK BARU ===== -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+    <!-- Progres Target Berat Badan -->
+    <div class="bg-white border border-brand-border rounded-3xl p-6">
+        <h3 class="font-bold text-gray-800 mb-4">Progres Target</h3>
+
+        @if ($target && $beratTerakhir)
+            <div class="flex items-end justify-between mb-2">
+                <p class="text-3xl font-extrabold text-brand">{{ $progresTarget }}%</p>
+                <p class="text-xs text-gray-400">
+                    {{ $sudahTurun > 0 ? 'Turun ' . $sudahTurun . ' kg' : 'Belum ada penurunan' }}
+                </p>
+            </div>
+            <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden mb-3">
+                <div class="h-full bg-gradient-to-r from-brand to-stat-green rounded-full transition-all"
+                     style="width: {{ $progresTarget }}%"></div>
+            </div>
+            <p class="text-xs text-gray-400">
+                {{ $target->berat_awal }} kg &rarr; {{ $beratTerakhir->berat_badan }} kg &rarr; target {{ $target->berat_target }} kg
+            </p>
+        @else
+            <p class="text-sm text-gray-400 py-4">
+                Belum ada data berat badan.
+                <a href="{{ route('user.profile.edit') }}" class="text-brand font-semibold hover:underline">Catat sekarang</a>
+            </p>
+        @endif
+
+        <div class="mt-5 pt-4 border-t border-brand-border flex items-center justify-between">
+            <span class="text-xs font-semibold text-gray-500">Sesi olahraga bulan ini</span>
+            <span class="text-lg font-extrabold text-gray-800">{{ $totalSesiBulanIni }}x</span>
+        </div>
+    </div>
+
+    <!-- Grafik Jarak 7 Hari Terakhir -->
+    <div class="lg:col-span-2 bg-white border border-brand-border rounded-3xl p-6">
+        <h3 class="font-bold text-gray-800 mb-4">Jarak Tempuh 7 Hari Terakhir</h3>
+        <div class="h-48">
+            <canvas id="chart7Hari"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    new Chart(document.getElementById('chart7Hari'), {
+        type: 'bar',
+        data: {
+            labels: @json($labels7Hari),
+            datasets: [{
+                label: 'Jarak (km)',
+                data: @json($data7Hari),
+                backgroundColor: '#2F6FED',
+                borderRadius: 8,
+                maxBarThickness: 36,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: v => v + ' km' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+</script>
+<!-- ===== AKHIR STATISTIK BARU ===== -->
+
 <div class="bg-brand-card border border-brand-border rounded-3xl p-6">
     <div class="flex items-center justify-between mb-4">
         <h3 class="font-bold text-gray-800">Riwayat aktifitas terakhir</h3>
