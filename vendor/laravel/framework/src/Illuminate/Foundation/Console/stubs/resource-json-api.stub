@@ -2,6 +2,7 @@
 
 namespace {{ namespace }};
 
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\JsonApi\JsonApiResource;
 
 class {{ class }} extends JsonApiResource

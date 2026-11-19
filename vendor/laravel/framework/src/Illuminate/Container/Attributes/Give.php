@@ -13,7 +13,7 @@ class Give implements ContextualAttribute
      * Provide a concrete class implementation for dependency injection.
      *
      * @param  string  $class
-     * @param  array  $params
+     * @param  array|null  $params
      */
     public function __construct(
         public string $class,

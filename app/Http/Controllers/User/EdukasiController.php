@@ -9,7 +9,10 @@ class EdukasiController extends Controller
 {
     public function index()
     {
-        $kontenPerTipe = KontenEdukasi::latest()->get()->groupBy('tipe_konten');
+        $kontenPerTipe = KontenEdukasi::published()
+            ->latest()
+            ->get()
+            ->groupBy('tipe_konten');
 
         return view('user.edukasi.index', compact('kontenPerTipe'));
     }

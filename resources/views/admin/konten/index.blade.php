@@ -52,9 +52,20 @@
                                 {{ str_replace('_', ' ', $konten->tipe_konten) }}
                             </span>
                             <p class="text-sm font-bold text-gray-800 truncate leading-snug">{{ $konten->judul }}</p>
-                            @if($konten->kategori)
-                                <p class="text-xs text-gray-400 mt-0.5 truncate">{{ $konten->kategori }}</p>
-                            @endif
+                            <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                                @if($konten->kategori)
+                                    <span class="text-xs text-gray-400 truncate">{{ $konten->kategori }}</span>
+                                    <span class="text-gray-300">•</span>
+                                @endif
+                                @if($konten->tanggal_publish)
+                                    @php
+                                        $isMasaDepan = \Carbon\Carbon::parse($konten->tanggal_publish)->isAfter(today());
+                                    @endphp
+                                    <span class="text-[11px] font-semibold {{ $isMasaDepan ? 'text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md' : 'text-gray-400' }}">
+                                        {{ $isMasaDepan ? 'Terjadwal: ' : 'Publish: ' }}{{ \Carbon\Carbon::parse($konten->tanggal_publish)->translatedFormat('d M Y') }}
+                                    </span>
+                                @endif
+                            </div>
                         </div>
                     </div>
 
@@ -121,6 +132,16 @@
                 <label class="block text-xs font-bold text-gray-700 mb-1.5">Judul Konten</label>
                 <input type="text" name="judul" value="{{ old('judul') }}" required placeholder="Masukkan judul konten..."
                        class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-xs font-semibold text-gray-800 focus:outline-none focus:border-brand focus:bg-white transition">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-700 mb-1.5">Tanggal Publish</label>
+                <input type="date" name="tanggal_publish" id="tanggalPublish"
+                       value="{{ old('tanggal_publish', date('Y-m-d')) }}"
+                       min="{{ date('Y-m-d') }}"
+                       required
+                       class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-xs font-semibold text-gray-800 focus:outline-none focus:border-brand focus:bg-white transition">
+                <p class="text-[10px] text-gray-400 mt-1">Hari ini atau tanggal setelahnya (sebelum hari ini ditolak).</p>
             </div>
 
             <div>

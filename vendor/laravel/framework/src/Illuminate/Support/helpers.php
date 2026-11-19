@@ -280,7 +280,7 @@ if (! function_exists('optional')) {
 
 if (! function_exists('preg_replace_array')) {
     /**
-     * Replace a given pattern with each value in the array sequentially.
+     * Replace a given pattern with each value in the array in sequentially.
      *
      * @param  string  $pattern
      * @param  array  $replacements
@@ -382,7 +382,7 @@ if (! function_exists('tap')) {
      *
      * @param  TValue  $value
      * @param  (callable(TValue): mixed)|null  $callback
-     * @return ($callback is null ? \Illuminate\Support\HigherOrderTapProxy<TValue> : TValue)
+     * @return ($callback is null ? \Illuminate\Support\HigherOrderTapProxy : TValue)
      */
     function tap($value, $callback = null)
     {

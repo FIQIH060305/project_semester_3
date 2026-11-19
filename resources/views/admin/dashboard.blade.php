@@ -33,7 +33,7 @@
     <div class="bg-white border border-brand-border p-5 rounded-2xl shadow-sm">
         <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Riwayat Aktivitas</span>
         <h2 class="text-3xl font-extrabold text-brand-rose mt-2">{{ number_format($totalRiwayat) }}</h2>
-        <p class="text-[11px] text-gray-400 mt-2 font-medium">Sesi olahraga tersimpan</p>
+        <p class="text-[11px] text-gray-400 mt-2 font-medium">Semua aktivitas olahraga pengguna </p>
     </div>
 
 </div>

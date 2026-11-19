@@ -186,7 +186,7 @@ trait QueriesRelationships
     public function withWhereHas($relation, ?Closure $callback = null, $operator = '>=', $count = 1)
     {
         return $this->whereHas(Str::before($relation, ':'), $callback, $operator, $count)
-            ->with($callback ? [$relation => static fn ($query) => $callback($query)] : $relation);
+            ->with($callback ? [$relation => fn ($query) => $callback($query)] : $relation);
     }
 
     /**
@@ -461,7 +461,7 @@ trait QueriesRelationships
     {
         return $this->whereRelation($relation, $column, $operator, $value)
             ->with([
-                $relation => static fn ($query) => $column instanceof Closure
+                $relation => fn ($query) => $column instanceof Closure
                     ? $column($query)
                     : $query->where($column, $operator, $value),
             ]);
@@ -729,7 +729,6 @@ trait QueriesRelationships
      * @param  string  $boolean
      * @return $this
      *
-     * @throws \InvalidArgumentException
      * @throws \Illuminate\Database\Eloquent\RelationNotFoundException
      */
     public function whereBelongsTo($related, $relationshipName = null, $boolean = 'and')
@@ -775,6 +774,8 @@ trait QueriesRelationships
      * @param  \Illuminate\Database\Eloquent\Model  $related
      * @param  string|null  $relationshipName
      * @return $this
+     *
+     * @throws \RuntimeException
      */
     public function orWhereBelongsTo($related, $relationshipName = null)
     {
@@ -789,7 +790,6 @@ trait QueriesRelationships
      * @param  string  $boolean
      * @return $this
      *
-     * @throws \InvalidArgumentException
      * @throws \Illuminate\Database\Eloquent\RelationNotFoundException
      */
     public function whereAttachedTo($related, $relationshipName = null, $boolean = 'and')
@@ -1120,7 +1120,7 @@ trait QueriesRelationships
      */
     protected function getRelationWithoutConstraints($relation)
     {
-        return Relation::noConstraintsForRelation(function () use ($relation) {
+        return Relation::noConstraints(function () use ($relation) {
             return $this->getModel()->{$relation}();
         });
     }

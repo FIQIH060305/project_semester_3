@@ -23,38 +23,38 @@ use function Illuminate\Support\enum_value;
  *
  * @template-covariant TValue
  *
- * @property-read HigherOrderCollectionProxy<'average', TValue, static> $average
- * @property-read HigherOrderCollectionProxy<'avg', TValue, static> $avg
- * @property-read HigherOrderCollectionProxy<'contains', TValue, static> $contains
- * @property-read HigherOrderCollectionProxy<'doesntContain', TValue, static> $doesntContain
- * @property-read HigherOrderCollectionProxy<'each', TValue, static> $each
- * @property-read HigherOrderCollectionProxy<'every', TValue, static> $every
- * @property-read HigherOrderCollectionProxy<'filter', TValue, static> $filter
- * @property-read HigherOrderCollectionProxy<'first', TValue, static> $first
- * @property-read HigherOrderCollectionProxy<'flatMap', TValue, static> $flatMap
- * @property-read HigherOrderCollectionProxy<'groupBy', TValue, static> $groupBy
- * @property-read HigherOrderCollectionProxy<'hasMany', TValue, static> $hasMany
- * @property-read HigherOrderCollectionProxy<'hasSole', TValue, static> $hasSole
- * @property-read HigherOrderCollectionProxy<'keyBy', TValue, static> $keyBy
- * @property-read HigherOrderCollectionProxy<'last', TValue, static> $last
- * @property-read HigherOrderCollectionProxy<'map', TValue, static> $map
- * @property-read HigherOrderCollectionProxy<'max', TValue, static> $max
- * @property-read HigherOrderCollectionProxy<'min', TValue, static> $min
- * @property-read HigherOrderCollectionProxy<'partition', TValue, static> $partition
- * @property-read HigherOrderCollectionProxy<'percentage', TValue, static> $percentage
- * @property-read HigherOrderCollectionProxy<'reject', TValue, static> $reject
- * @property-read HigherOrderCollectionProxy<'skipUntil', TValue, static> $skipUntil
- * @property-read HigherOrderCollectionProxy<'skipWhile', TValue, static> $skipWhile
- * @property-read HigherOrderCollectionProxy<'some', TValue, static> $some
- * @property-read HigherOrderCollectionProxy<'sortBy', TValue, static> $sortBy
- * @property-read HigherOrderCollectionProxy<'sortByDesc', TValue, static> $sortByDesc
- * @property-read HigherOrderCollectionProxy<'sum', TValue, static> $sum
- * @property-read HigherOrderCollectionProxy<'takeUntil', TValue, static> $takeUntil
- * @property-read HigherOrderCollectionProxy<'takeWhile', TValue, static> $takeWhile
- * @property-read HigherOrderCollectionProxy<'unique', TValue, static> $unique
- * @property-read HigherOrderCollectionProxy<'unless', TValue, static> $unless
- * @property-read HigherOrderCollectionProxy<'until', TValue, static> $until
- * @property-read HigherOrderCollectionProxy<'when', TValue, static> $when
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $average
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $avg
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $contains
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $doesntContain
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $each
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $every
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $filter
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $first
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $flatMap
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $groupBy
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $hasMany
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $hasSole
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $keyBy
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $last
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $map
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $max
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $min
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $partition
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $percentage
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $reject
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $skipUntil
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $skipWhile
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $some
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $sortBy
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $sortByDesc
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $sum
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $takeUntil
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $takeWhile
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $unique
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $unless
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $until
+ * @property-read HigherOrderCollectionProxy<TKey, TValue> $when
  */
 trait EnumeratesValues
 {
@@ -116,9 +116,9 @@ trait EnumeratesValues
      * @param  \Illuminate\Contracts\Support\Arrayable<TMakeKey, TMakeValue>|iterable<TMakeKey, TMakeValue>|null  $items
      * @return static<TMakeKey, TMakeValue>
      */
-    public static function make($items = [], ...$args)
+    public static function make($items = [])
     {
-        return new static($items, ...$args);
+        return new static($items);
     }
 
     /**
@@ -129,11 +129,11 @@ trait EnumeratesValues
      * @param  iterable<array-key, TWrapValue>|TWrapValue  $value
      * @return static<array-key, TWrapValue>
      */
-    public static function wrap($value, ...$args)
+    public static function wrap($value)
     {
         return $value instanceof Enumerable
-            ? new static($value, ...$args)
-            : new static(Arr::wrap($value), ...$args);
+            ? new static($value)
+            : new static(Arr::wrap($value));
     }
 
     /**
@@ -155,9 +155,9 @@ trait EnumeratesValues
      *
      * @return static
      */
-    public static function empty(...$args)
+    public static function empty()
     {
-        return new static([], ...$args);
+        return new static([]);
     }
 
     /**
@@ -169,13 +169,13 @@ trait EnumeratesValues
      * @param  (callable(int): TTimesValue)|null  $callback
      * @return static<int, TTimesValue>
      */
-    public static function times($number, ?callable $callback = null, ...$args)
+    public static function times($number, ?callable $callback = null)
     {
         if ($number < 1) {
-            return new static([], ...$args);
+            return new static;
         }
 
-        return static::range(1, $number, 1, ...$args)
+        return static::range(1, $number)
             ->unless($callback == null)
             ->map($callback);
     }
@@ -188,9 +188,9 @@ trait EnumeratesValues
      * @param  int  $flags
      * @return static<TKey, TValue>
      */
-    public static function fromJson($json, $depth = 512, $flags = 0, ...$args)
+    public static function fromJson($json, $depth = 512, $flags = 0)
     {
-        return new static(json_decode($json, true, $depth, $flags), ...$args);
+        return new static(json_decode($json, true, $depth, $flags));
     }
 
     /**
@@ -486,10 +486,8 @@ trait EnumeratesValues
     /**
      * Get the min value of a given key.
      *
-     * @template TMinResult = mixed
-     *
-     * @param  (callable(TValue): TMinResult)|string|null  $callback
-     * @return ($callback is callable ? ?TMinResult : ($callback is null ? ?TValue : mixed))
+     * @param  (callable(TValue):mixed)|string|null  $callback
+     * @return mixed
      */
     public function min($callback = null)
     {
@@ -503,10 +501,8 @@ trait EnumeratesValues
     /**
      * Get the max value of a given key.
      *
-     * @template TMaxResult = mixed
-     *
-     * @param  (callable(TValue): TMaxResult)|string|null  $callback
-     * @return ($callback is callable ? ?TMaxResult : ($callback is null ? ?TValue : mixed))
+     * @param  (callable(TValue):mixed)|string|null  $callback
+     * @return mixed
      */
     public function max($callback = null)
     {
@@ -549,7 +545,7 @@ trait EnumeratesValues
 
         [$passed, $failed] = Arr::partition($this->getIterator(), $callback);
 
-        return $this->newInstance([$this->newInstance($passed), $this->newInstance($failed)]);
+        return new static([new static($passed), new static($failed)]);
     }
 
     /**
@@ -576,8 +572,8 @@ trait EnumeratesValues
      *
      * @template TReturnType
      *
-     * @param  (callable(TValue, TKey): TReturnType)|string|null  $callback
-     * @return ($callback is string ? mixed : ($callback is callable ? TReturnType : mixed))
+     * @param  (callable(TValue): TReturnType)|string|null  $callback
+     * @return ($callback is callable ? TReturnType : mixed)
      */
     public function sum($callback = null)
     {
@@ -585,7 +581,7 @@ trait EnumeratesValues
             ? $this->identity()
             : $this->valueRetriever($callback);
 
-        return $this->reduce(fn ($result, $item, $key) => $result + $callback($item, $key), 0);
+        return $this->reduce(fn ($result, $item) => $result + $callback($item), 0);
     }
 
     /**
@@ -783,7 +779,13 @@ trait EnumeratesValues
     {
         return $this->filter(function ($value) use ($type) {
             if (is_array($type)) {
-                return array_any($type, fn ($classType) => $value instanceof $classType);
+                foreach ($type as $classType) {
+                    if ($value instanceof $classType) {
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             return $value instanceof $type;
@@ -838,7 +840,7 @@ trait EnumeratesValues
      *
      * @param  callable(TReduceInitial|TReduceReturnType, TValue, TKey): TReduceReturnType  $callback
      * @param  TReduceInitial  $initial
-     * @return TReduceInitial|TReduceReturnType
+     * @return TReduceReturnType
      */
     public function reduce(callable $callback, $initial = null)
     {
@@ -849,24 +851,6 @@ trait EnumeratesValues
         }
 
         return $result;
-    }
-
-    /**
-     * Reduce the collection to a single value by mutating an initial value.
-     *
-     * @template TReduceIntoInitial
-     *
-     * @param  TReduceIntoInitial  $initial
-     * @param  callable(TReduceIntoInitial, TValue, TKey): void  $callback
-     * @return TReduceIntoInitial
-     */
-    public function reduceInto($initial, callable $callback)
-    {
-        foreach ($this as $key => $value) {
-            $callback($initial, $value, $key);
-        }
-
-        return $initial;
     }
 
     /**
@@ -904,7 +888,7 @@ trait EnumeratesValues
      *
      * @param  callable(TReduceWithKeysInitial|TReduceWithKeysReturnType, TValue, TKey): TReduceWithKeysReturnType  $callback
      * @param  TReduceWithKeysInitial  $initial
-     * @return TReduceWithKeysInitial|TReduceWithKeysReturnType
+     * @return TReduceWithKeysReturnType
      */
     public function reduceWithKeys(callable $callback, $initial = null)
     {
@@ -926,21 +910,6 @@ trait EnumeratesValues
                 ? ! $callback($value, $key)
                 : $value != $callback;
         });
-    }
-
-    /**
-     * Chunk the collection into chunks by comparing adjacent values using the given key or callback.
-     *
-     * @param  (callable(TValue, TKey): mixed)|string  $key
-     * @return static<int, static<TKey, TValue>>
-     */
-    public function chunkBy($key)
-    {
-        $callback = $this->valueRetriever($key);
-
-        return $this->chunkWhile(
-            fn ($value, $key, $chunk) => $callback($value, $key) == $callback($chunk->last(), $chunk->keys()->last())
-        );
     }
 
     /**

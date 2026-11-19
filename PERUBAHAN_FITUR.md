@@ -28,3 +28,5 @@ Catatan pengujian:
 - PHP syntax check: berhasil.
 - Laravel route list: berhasil.
 - Migrasi database penuh tidak dapat dijalankan pada lingkungan pengecekan karena PHP CLI tidak memiliki driver SQLite.
+
+//php artisan serve --host=0.0.0.0 --port=8000

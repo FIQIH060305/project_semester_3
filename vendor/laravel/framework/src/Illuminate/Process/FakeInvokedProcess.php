@@ -35,13 +35,6 @@ class FakeInvokedProcess implements InvokedProcessContract
     protected $remainingRunIterations;
 
     /**
-     * Indicates whether the process has been stopped.
-     *
-     * @var bool
-     */
-    protected $stopped = false;
-
-    /**
      * The general output handler callback.
      *
      * @var callable|null
@@ -129,10 +122,6 @@ class FakeInvokedProcess implements InvokedProcessContract
      */
     public function running()
     {
-        if ($this->stopped) {
-            return false;
-        }
-
         $this->invokeOutputHandlerWithNextLineOfOutput();
 
         $this->remainingRunIterations = is_null($this->remainingRunIterations)
@@ -140,7 +129,7 @@ class FakeInvokedProcess implements InvokedProcessContract
             : $this->remainingRunIterations;
 
         if ($this->remainingRunIterations === 0) {
-            while (! $this->stopped && $this->invokeOutputHandlerWithNextLineOfOutput()) {
+            while ($this->invokeOutputHandlerWithNextLineOfOutput()) {
             }
 
             return false;
@@ -273,16 +262,6 @@ class FakeInvokedProcess implements InvokedProcessContract
     }
 
     /**
-     * Ensure that the process has not timed out.
-     *
-     * @return void
-     */
-    public function ensureNotTimedOut()
-    {
-        //
-    }
-
-    /**
      * Wait for the process to finish.
      *
      * @param  callable|null  $output
@@ -336,21 +315,6 @@ class FakeInvokedProcess implements InvokedProcessContract
         $this->remainingRunIterations = 0;
 
         return $this->process->toProcessResult($this->command);
-    }
-
-    /**
-     * Stop the process if it is still running.
-     *
-     * @param  float  $timeout
-     * @param  int|null  $signal
-     * @return int|null
-     */
-    public function stop(float $timeout = 10, ?int $signal = null)
-    {
-        $this->stopped = true;
-        $this->remainingRunIterations = 0;
-
-        return $this->process->exitCode;
     }
 
     /**

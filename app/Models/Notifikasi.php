@@ -7,10 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 class Notifikasi extends Model
 {
     protected $table = 'notifikasi';
+
     protected $primaryKey = 'id_notifikasi';
+
     public $timestamps = false;
 
     protected $fillable = ['id_jadwal', 'pesan', 'waktu_kirim', 'status_dibaca'];
+
+    protected function casts(): array
+    {
+        return [
+            'waktu_kirim' => 'datetime',
+            'status_dibaca' => 'boolean',
+        ];
+    }
 
     public function jadwal()
     {

@@ -16,38 +16,72 @@
 </head>
 <body class="bg-brand-bg">
 
+@php
+    $unreadNotifikasiCount = 0;
+    if (auth('web')->check()) {
+        $unreadNotifikasiCount = \App\Models\Notifikasi::whereHas('jadwal', function ($q) {
+            $q->where('id_akun', auth('web')->id());
+        })->where('status_dibaca', false)->count();
+    }
+@endphp
+
 <nav class="bg-white border-b-2 border-brand px-6 py-3">
-    <div class="max-w-6xl mx-auto flex items-center justify-between">
-        <!-- Logo diperbesar dari h-12 menjadi h-16 (bisa diganti h-20 jika ingin lebih besar lagi) -->
-        <img src="{{ asset('assets/images/logo.png') }}" alt="GERAK" class="h-20 w-auto object-contain">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-4">
+        <a href="{{ route('user.dashboard') }}" class="flex items-center shrink-0">
+            <img src="{{ asset('assets/images/logo.png') }}" alt="GERAK" class="h-20 w-auto object-contain">
+        </a>
         
-        <div class="hidden md:flex items-center gap-2">
-            <a href="{{ route('user.dashboard') }}"
-               class="px-5 py-2.5 rounded-xl text-sm font-bold transition {{ request()->routeIs('user.dashboard') ? 'bg-brand text-white' : 'text-gray-700 hover:bg-brand-bg' }}">
-                Beranda
+        <div class="flex items-center gap-2 sm:gap-3">
+            <div class="hidden md:flex items-center gap-2">
+                <a href="{{ route('user.dashboard') }}"
+                   class="px-5 py-2.5 rounded-xl text-sm font-bold transition {{ request()->routeIs('user.dashboard') ? 'bg-brand text-white' : 'text-gray-700 hover:bg-brand-bg' }}">
+                    Beranda
+                </a>
+                <a href="{{ route('user.edukasi.index') }}"
+                   class="px-5 py-2.5 rounded-xl text-sm font-bold transition {{ request()->routeIs('user.edukasi.index') ? 'bg-brand text-white' : 'text-gray-700 hover:bg-brand-bg' }}">
+                    Konten edukasi
+                </a>
+                <a href="{{ route('user.rekap.index') }}"
+                   class="px-5 py-2.5 rounded-xl text-sm font-bold transition {{ request()->routeIs('user.rekap.index') ? 'bg-brand text-white' : 'text-gray-700 hover:bg-brand-bg' }}">
+                    Rekapan aktifitas
+                </a>
+                <a href="{{ route('user.profile.show') }}"
+                   class="px-5 py-2.5 rounded-xl text-sm font-bold transition {{ request()->routeIs('user.profile.*') ? 'bg-brand text-white' : 'text-gray-700 hover:bg-brand-bg' }}">
+                    Profile
+                </a>
+            </div>
+
+            <!-- Tombol / Icon Notifikasi dengan Badge -->
+            <a href="{{ route('user.notifikasi.index') }}"
+               class="relative p-2.5 rounded-xl text-gray-700 hover:bg-brand-bg hover:text-brand transition flex items-center justify-center {{ request()->routeIs('user.notifikasi.*') ? 'bg-brand/10 text-brand' : '' }}"
+               title="Notifikasi" aria-label="Notifikasi">
+                <span class="text-xl leading-none">🔔</span>
+                @if ($unreadNotifikasiCount > 0)
+                    <span class="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white bg-red-500 rounded-full min-w-[18px]">
+                        {{ $unreadNotifikasiCount }}
+                    </span>
+                @endif
             </a>
-            <a href="{{ route('user.edukasi.index') }}"
-               class="px-5 py-2.5 rounded-xl text-sm font-bold transition {{ request()->routeIs('user.edukasi.index') ? 'bg-brand text-white' : 'text-gray-700 hover:bg-brand-bg' }}">
-                Konten edukasi
-            </a>
-            <a href="{{ route('user.rekap.index') }}"
-               class="px-5 py-2.5 rounded-xl text-sm font-bold transition {{ request()->routeIs('user.rekap.index') ? 'bg-brand text-white' : 'text-gray-700 hover:bg-brand-bg' }}">
-                Rekapan aktifitas
-            </a>
-            <a href="{{ route('user.profile.show') }}"
-               class="px-5 py-2.5 rounded-xl text-sm font-bold transition {{ request()->routeIs('user.profile.*') ? 'bg-brand text-white' : 'text-gray-700 hover:bg-brand-bg' }}">
-                Profile
-            </a>
+
+            <!-- Tombol Hamburger Mobile -->
+            <button class="md:hidden p-2 rounded-xl text-gray-700 hover:bg-brand-bg transition" onclick="document.getElementById('mobileNav').classList.toggle('hidden')">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
         </div>
-        <button class="md:hidden" onclick="document.getElementById('mobileNav').classList.toggle('hidden')">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-        </button>
     </div>
-    <div id="mobileNav" class="hidden md:hidden mt-3 flex flex-col gap-1">
+    <div id="mobileNav" class="hidden md:hidden mt-3 pt-3 border-t border-brand-border flex flex-col gap-1">
         <a href="{{ route('user.dashboard') }}" class="px-4 py-2 rounded-xl text-sm font-bold {{ request()->routeIs('user.dashboard') ? 'bg-brand text-white' : 'text-gray-700' }}">Beranda</a>
         <a href="{{ route('user.edukasi.index') }}" class="px-4 py-2 rounded-xl text-sm font-bold {{ request()->routeIs('user.edukasi.index') ? 'bg-brand text-white' : 'text-gray-700' }}">Konten edukasi</a>
         <a href="{{ route('user.rekap.index') }}" class="px-4 py-2 rounded-xl text-sm font-bold {{ request()->routeIs('user.rekap.index') ? 'bg-brand text-white' : 'text-gray-700' }}">Rekapan aktifitas</a>
         <a href="{{ route('user.profile.show') }}" class="px-4 py-2 rounded-xl text-sm font-bold {{ request()->routeIs('user.profile.*') ? 'bg-brand text-white' : 'text-gray-700' }}">Profile</a>
+        <a href="{{ route('user.notifikasi.index') }}" class="px-4 py-2 rounded-xl text-sm font-bold flex items-center justify-between {{ request()->routeIs('user.notifikasi.*') ? 'bg-brand text-white' : 'text-gray-700' }}">
+            <span class="flex items-center gap-2"><span>🔔</span> Notifikasi</span>
+            @if ($unreadNotifikasiCount > 0)
+                <span class="px-2 py-0.5 text-xs font-extrabold rounded-full {{ request()->routeIs('user.notifikasi.*') ? 'bg-white text-brand' : 'bg-red-500 text-white' }}">
+                    {{ $unreadNotifikasiCount }}
+                </span>
+            @endif
+        </a>
     </div>
 </nav>
 

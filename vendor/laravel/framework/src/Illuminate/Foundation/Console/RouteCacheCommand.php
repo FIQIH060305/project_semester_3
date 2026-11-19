@@ -3,22 +3,20 @@
 namespace Illuminate\Foundation\Console;
 
 use Illuminate\Console\Command;
-use Illuminate\Container\Container;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernelContract;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Routing\RouteCollection;
-use Illuminate\Support\Facades\Facade;
 use Symfony\Component\Console\Attribute\AsCommand;
 
 #[AsCommand(name: 'route:cache')]
 class RouteCacheCommand extends Command
 {
     /**
-     * The name and signature of the console command.
+     * The console command name.
      *
      * @var string
      */
-    protected $signature = 'route:cache';
+    protected $name = 'route:cache';
 
     /**
      * The console command description.
@@ -94,11 +92,6 @@ class RouteCacheCommand extends Command
     {
         return tap(require $this->laravel->bootstrapPath('app.php'), function ($app) {
             $app->make(ConsoleKernelContract::class)->bootstrap();
-
-            Facade::clearResolvedInstances();
-
-            Facade::setFacadeApplication($this->laravel);
-            Container::setInstance($this->laravel);
         });
     }
 

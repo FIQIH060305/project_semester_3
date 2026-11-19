@@ -39,23 +39,58 @@ class RekapitulasiController extends Controller
             );
         }
 
-        // Baca dari tabel rekap_bulanan (bukan hitung ulang lagi)
+        // Baca dari tabel rekap_bulanan beserta jumlah sesi per akun
         $rekapList = RekapBulanan::with('akun')
             ->where('bulan', $bulan)->where('tahun', $tahun)
-            ->get();
+            ->get()
+            ->map(function ($rekap) use ($bulan, $tahun) {
+                $rekap->total_sesi = $rekap->akun
+                    ? $rekap->akun->riwayatOlahraga()
+                        ->whereMonth('tanggal_waktu', $bulan)
+                        ->whereYear('tanggal_waktu', $tahun)
+                        ->count()
+                    : 0;
 
-        $totalSesi    = 0; // dihitung terpisah karena jumlah sesi tidak disimpan di rekap_bulanan
-        foreach ($akunAktif as $akun) {
-            $totalSesi += $akun->riwayatOlahraga()
-                ->whereMonth('tanggal_waktu', $bulan)->whereYear('tanggal_waktu', $tahun)->count();
-        }
+                return $rekap;
+            });
 
-        $totalJarak   = $rekapList->sum('total_jarak_km');
-        $totalKalori  = $rekapList->sum('total_kalori_terbakar');
+        $totalSesi = $rekapList->sum('total_sesi');
+        $totalJarak = $rekapList->sum('total_jarak_km');
+        $totalKalori = $rekapList->sum('total_kalori_terbakar');
         $totalLangkah = $rekapList->sum('total_langkah');
 
         return view('admin.rekapan.index', compact(
             'bulan', 'tahun', 'totalSesi', 'totalJarak', 'totalKalori', 'totalLangkah', 'rekapList'
+        ));
+    }
+
+    public function show(Request $request, int $id)
+    {
+        $bulan = (int) $request->input('bulan', now()->month);
+        $tahun = (int) $request->input('tahun', now()->year);
+
+        $akun = Akun::findOrFail($id);
+
+        $riwayatList = $akun->riwayatOlahraga()
+            ->with('jenisOlahraga')
+            ->whereMonth('tanggal_waktu', $bulan)
+            ->whereYear('tanggal_waktu', $tahun)
+            ->orderByDesc('tanggal_waktu')
+            ->get();
+
+        $beratList = $akun->riwayatBeratBadan()
+            ->whereMonth('tanggal_pencatatan', $bulan)
+            ->whereYear('tanggal_pencatatan', $tahun)
+            ->orderBy('tanggal_pencatatan')
+            ->get();
+
+        $rekap = RekapBulanan::where('id_akun', $akun->id_akun)
+            ->where('bulan', $bulan)
+            ->where('tahun', $tahun)
+            ->first();
+
+        return view('admin.rekapan.show', compact(
+            'akun', 'bulan', 'tahun', 'riwayatList', 'beratList', 'rekap'
         ));
     }
 }

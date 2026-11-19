@@ -1,3 +1,12 @@
+@php
+    $unreadNotifikasiCount = 0;
+    if (auth('web')->check()) {
+        $unreadNotifikasiCount = \App\Models\Notifikasi::whereHas('jadwal', function ($q) {
+            $q->where('id_akun', auth('web')->id());
+        })->where('status_dibaca', false)->count();
+    }
+@endphp
+
 <nav class="bg-brand-card border-b border-brand-soft px-6 py-3">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -25,6 +34,18 @@
         </div>
 
         <div class="flex items-center gap-3">
+            <!-- Icon Notifikasi dengan Badge -->
+            <a href="{{ route('user.notifikasi.index') }}"
+               class="relative p-2 rounded-xl text-brand-deep hover:bg-brand-bg transition flex items-center justify-center"
+               title="Notifikasi">
+                <span class="text-lg leading-none">🔔</span>
+                @if ($unreadNotifikasiCount > 0)
+                    <span class="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white bg-red-500 rounded-full min-w-[18px]">
+                        {{ $unreadNotifikasiCount }}
+                    </span>
+                @endif
+            </a>
+
             <a href="{{ route('user.profile.show') }}" class="flex items-center gap-2 group">
                 <div class="w-9 h-9 rounded-full bg-brand-accent flex items-center justify-center text-xs font-bold text-brand-deep">
                     {{ strtoupper(substr(auth('web')->user()->nama_lengkap ?? 'U', 0, 2)) }}

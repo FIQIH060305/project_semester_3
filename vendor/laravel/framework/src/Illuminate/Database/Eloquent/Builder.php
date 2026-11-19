@@ -22,7 +22,6 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Traits\ForwardsCalls;
 use ReflectionClass;
 use ReflectionMethod;
-use SortDirection;
 
 /**
  * @template TModel of \Illuminate\Database\Eloquent\Model
@@ -126,7 +125,6 @@ class Builder implements BuilderContract
         'insert',
         'insertgetid',
         'insertorignore',
-        'insertorignorereturning',
         'insertusing',
         'insertorignoreusing',
         'max',
@@ -214,7 +212,7 @@ class Builder implements BuilderContract
      */
     public function withoutGlobalScope($scope)
     {
-        if (is_object($scope)) {
+        if (! is_string($scope)) {
             $scope = get_class($scope);
         }
 
@@ -328,28 +326,6 @@ class Builder implements BuilderContract
     }
 
     /**
-     * Add an "or where" clause on the primary key to the query.
-     *
-     * @param  mixed  $id
-     * @return $this
-     */
-    public function orWhereKey($id)
-    {
-        return $this->where(fn (self $query) => $query->whereKey($id), null, null, 'or');
-    }
-
-    /**
-     * Add an "or where not" clause on the primary key to the query.
-     *
-     * @param  mixed  $id
-     * @return $this
-     */
-    public function orWhereKeyNot($id)
-    {
-        return $this->where(fn (self $query) => $query->whereKeyNot($id), null, null, 'or');
-    }
-
-    /**
      * Exclude the given models from the query results.
      *
      * @param  iterable|mixed  $models
@@ -380,9 +356,6 @@ class Builder implements BuilderContract
 
             $this->eagerLoad = array_merge($this->eagerLoad, $query->getEagerLoads());
 
-            $this->withoutGlobalScopes(
-                $query->removedScopes()
-            );
             $this->query->addNestedWhereQuery($query->getQuery(), $boolean);
         } else {
             $this->query->where(...func_get_args());
@@ -553,7 +526,7 @@ class Builder implements BuilderContract
             $values = [$values];
         }
 
-        $this->model::unguarded(function () use (&$values) {
+        $this->model->unguarded(function () use (&$values) {
             foreach ($values as $key => $rowValues) {
                 $values[$key] = tap(
                     $this->newModelInstance($rowValues),
@@ -711,16 +684,16 @@ class Builder implements BuilderContract
      * Get the first record matching the attributes or instantiate it.
      *
      * @param  array  $attributes
-     * @param  (\Closure(): array)|array  $values
+     * @param  array  $values
      * @return TModel
      */
-    public function firstOrNew(array $attributes = [], Closure|array $values = [])
+    public function firstOrNew(array $attributes = [], array $values = [])
     {
         if (! is_null($instance = $this->where($attributes)->first())) {
             return $instance;
         }
 
-        return $this->newModelInstance(array_merge($attributes, value($values)));
+        return $this->newModelInstance(array_merge($attributes, $values));
     }
 
     /**
@@ -745,8 +718,6 @@ class Builder implements BuilderContract
      * @param  array  $attributes
      * @param  (\Closure(): array)|array  $values
      * @return TModel
-     *
-     * @throws \Illuminate\Database\UniqueConstraintViolationException
      */
     public function createOrFirst(array $attributes = [], Closure|array $values = [])
     {
@@ -761,14 +732,14 @@ class Builder implements BuilderContract
      * Create or update a record matching the attributes, and fill it with values.
      *
      * @param  array  $attributes
-     * @param  (\Closure(): array)|array  $values
+     * @param  array  $values
      * @return TModel
      */
-    public function updateOrCreate(array $attributes, Closure|array $values = [])
+    public function updateOrCreate(array $attributes, array $values = [])
     {
         return tap($this->firstOrCreate($attributes, $values), function ($instance) use ($values) {
             if (! $instance->wasRecentlyCreated) {
-                $instance->fill(value($values))->save();
+                $instance->fill($values)->save();
             }
         });
     }
@@ -988,10 +959,10 @@ class Builder implements BuilderContract
      */
     public function getRelation($name)
     {
-        // We want to do a relationship query without any constraints so that we will
+        // We want to run a relationship query without any constrains so that we will
         // not have to remove these where clauses manually which gets really hacky
         // and error prone. We don't want constraints because we add eager ones.
-        $relation = Relation::noConstraintsForRelation(function () use ($name) {
+        $relation = Relation::noConstraints(function () use ($name) {
             try {
                 return $this->getModel()->newInstance()->$name();
             } catch (BadMethodCallException) {
@@ -1095,7 +1066,7 @@ class Builder implements BuilderContract
     protected function enforceOrderBy()
     {
         if (empty($this->query->orders) && empty($this->query->unionOrders)) {
-            $this->orderBy($this->model->getQualifiedKeyName(), SortDirection::Ascending);
+            $this->orderBy($this->model->getQualifiedKeyName(), 'asc');
         }
     }
 
@@ -1128,16 +1099,6 @@ class Builder implements BuilderContract
                 return $this->model->newFromBuilder([$column => $value])->{$column};
             })
         );
-    }
-
-    /**
-     * Get an array of primary keys from the query result.
-     *
-     * @return array<int, array-key>
-     */
-    public function modelKeys()
-    {
-        return $this->pluck($this->model->getQualifiedKeyName())->all();
     }
 
     /**
@@ -1278,7 +1239,7 @@ class Builder implements BuilderContract
      */
     public function forceCreate(array $attributes)
     {
-        return $this->model::unguarded(function () use ($attributes) {
+        return $this->model->unguarded(function () use ($attributes) {
             return $this->newModelInstance()->create($attributes);
         });
     }
@@ -1386,34 +1347,6 @@ class Builder implements BuilderContract
     {
         return $this->toBase()->decrement(
             $column, $amount, $this->addUpdatedAtColumn($extra)
-        );
-    }
-
-    /**
-     * Increment the given column's values by the given amounts.
-     *
-     * @param  array<string, float|int|numeric-string>  $columns
-     * @param  array<string, mixed>  $extra
-     * @return int
-     */
-    public function incrementEach(array $columns, array $extra = [])
-    {
-        return $this->toBase()->incrementEach(
-            $columns, $this->addUpdatedAtColumn($extra)
-        );
-    }
-
-    /**
-     * Decrement the given column's values by the given amounts.
-     *
-     * @param  array<string, float|int|numeric-string>  $columns
-     * @param  array<string, mixed>  $extra
-     * @return int
-     */
-    public function decrementEach(array $columns, array $extra = [])
-    {
-        return $this->toBase()->decrementEach(
-            $columns, $this->addUpdatedAtColumn($extra)
         );
     }
 
@@ -1905,7 +1838,7 @@ class Builder implements BuilderContract
      */
     protected function combineConstraints(array $constraints)
     {
-        return static function ($builder) use ($constraints) {
+        return function ($builder) use ($constraints) {
             foreach ($constraints as $constraint) {
                 $builder = $constraint($builder) ?? $builder;
             }
@@ -2186,16 +2119,6 @@ class Builder implements BuilderContract
     {
         $column = $column instanceof Expression ? $column->getValue($this->getGrammar()) : $column;
 
-        if (! is_null($alias = $this->getTableAlias())) {
-            if (! str_contains($column, '.')) {
-                return $alias.'.'.$column;
-            }
-
-            if (str_starts_with($column, $table = $this->model->getTable().'.')) {
-                return $alias.'.'.substr($column, strlen($table));
-            }
-        }
-
         return $this->model->qualifyColumn($column);
     }
 
@@ -2207,29 +2130,7 @@ class Builder implements BuilderContract
      */
     public function qualifyColumns($columns)
     {
-        $qualified = [];
-
-        foreach ($columns as $key => $column) {
-            $qualified[$key] = $this->qualifyColumn($column);
-        }
-
-        return $qualified;
-    }
-
-    /**
-     * Get the alias given to the query's table, if any.
-     *
-     * @return string|null
-     */
-    protected function getTableAlias()
-    {
-        if (! is_string($this->query->from)) {
-            return null;
-        }
-
-        $segments = preg_split('/\s+as\s+/i', $this->query->from);
-
-        return count($segments) > 1 ? array_last($segments) : null;
+        return $this->model->qualifyColumns($columns);
     }
 
     /**
@@ -2381,8 +2282,6 @@ class Builder implements BuilderContract
      * @param  string  $mixin
      * @param  bool  $replace
      * @return void
-     *
-     * @throws \ReflectionException
      */
     protected static function registerMixin($mixin, $replace)
     {

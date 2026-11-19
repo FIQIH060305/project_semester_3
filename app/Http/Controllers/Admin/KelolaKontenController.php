@@ -7,12 +7,14 @@ use App\Models\KontenEdukasi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class KelolaKontenController extends Controller
 {
     public function index()
     {
         $kontenList = KontenEdukasi::latest()->get();
+
         return view('admin.konten.index', compact('kontenList'));
     }
 
@@ -20,21 +22,27 @@ class KelolaKontenController extends Controller
     {
         $validated = $request->validate([
             'tipe_konten' => ['required', 'in:video_olahraga,video_resep,artikel'],
-            'judul' => ['required', 'string', 'max:150'],
+            'judul' => [
+                'required', 'string', 'max:150',
+                Rule::unique('konten_edukasi')->where(fn ($q) => $q->where('tipe_konten', $request->tipe_konten)),
+            ],
             'deskripsi' => ['nullable', 'string'],
             'url_video_youtube' => [
                 'nullable',
                 'required_if:tipe_konten,video_olahraga,video_resep',
                 'url',
-                'unique:konten_edukasi,url_video_youtube',
+                Rule::unique('konten_edukasi', 'url_video_youtube'),
             ],
             'konten_teks' => ['nullable', 'required_if:tipe_konten,artikel', 'string'],
             'kategori' => ['nullable', 'string', 'max:50'],
             'thumbnail' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:2048'],
+            'tanggal_publish' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:today'],
         ], [
             'tipe_konten.required' => 'Tipe konten wajib dipilih.',
+            'tipe_konten.in' => 'Tipe konten tidak valid.',
             'judul.required' => 'Judul wajib diisi.',
             'judul.max' => 'Judul maksimal 150 karakter.',
+            'judul.unique' => 'Konten dengan tipe dan judul yang sama sudah ada.',
             'url_video_youtube.required_if' => 'Link YouTube wajib diisi untuk tipe video.',
             'url_video_youtube.url' => 'Format link tidak valid. Pastikan diawali https:// dan berasal dari YouTube.',
             'url_video_youtube.unique' => 'Link YouTube ini sudah dipakai di konten lain. Silakan gunakan video yang berbeda.',
@@ -42,6 +50,10 @@ class KelolaKontenController extends Controller
             'thumbnail.image' => 'File yang diunggah harus berupa gambar, bukan dokumen seperti PDF atau Word.',
             'thumbnail.mimes' => 'Format gambar harus JPG, PNG, JPEG.',
             'thumbnail.max' => 'Ukuran gambar maksimal 2MB.',
+            'tanggal_publish.required' => 'Tanggal publish wajib diisi.',
+            'tanggal_publish.date' => 'Format tanggal publish tidak valid.',
+            'tanggal_publish.date_format' => 'Format tanggal publish harus YYYY-MM-DD.',
+            'tanggal_publish.after_or_equal' => 'Tanggal publish tidak boleh sebelum hari ini.',
         ]);
 
         if ($request->hasFile('thumbnail')) {
@@ -58,6 +70,7 @@ class KelolaKontenController extends Controller
     public function edit($id)
     {
         $konten = KontenEdukasi::findOrFail($id);
+
         return view('admin.konten.edit', compact('konten'));
     }
 
@@ -67,21 +80,27 @@ class KelolaKontenController extends Controller
 
         $validated = $request->validate([
             'tipe_konten' => ['required', 'in:video_olahraga,video_resep,artikel'],
-            'judul' => ['required', 'string', 'max:150'],
+            'judul' => [
+                'required', 'string', 'max:150',
+                Rule::unique('konten_edukasi')->where(fn ($q) => $q->where('tipe_konten', $request->tipe_konten))->ignore($id, 'id_konten'),
+            ],
             'deskripsi' => ['nullable', 'string'],
             'url_video_youtube' => [
                 'nullable',
                 'required_if:tipe_konten,video_olahraga,video_resep',
                 'url',
-                'unique:konten_edukasi,url_video_youtube,' . $id . ',id_konten',
+                Rule::unique('konten_edukasi', 'url_video_youtube')->ignore($id, 'id_konten'),
             ],
             'konten_teks' => ['nullable', 'required_if:tipe_konten,artikel', 'string'],
             'kategori' => ['nullable', 'string', 'max:50'],
             'thumbnail' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:2048'],
+            'tanggal_publish' => ['required', 'date', 'date_format:Y-m-d', 'after_or_equal:today'],
         ], [
             'tipe_konten.required' => 'Tipe konten wajib dipilih.',
+            'tipe_konten.in' => 'Tipe konten tidak valid.',
             'judul.required' => 'Judul wajib diisi.',
             'judul.max' => 'Judul maksimal 150 karakter.',
+            'judul.unique' => 'Konten dengan tipe dan judul yang sama sudah ada.',
             'url_video_youtube.required_if' => 'Link YouTube wajib diisi untuk tipe video.',
             'url_video_youtube.url' => 'Format link tidak valid. Pastikan diawali https:// dan berasal dari YouTube.',
             'url_video_youtube.unique' => 'Link YouTube ini sudah dipakai di konten lain. Silakan gunakan video yang berbeda.',
@@ -89,6 +108,10 @@ class KelolaKontenController extends Controller
             'thumbnail.image' => 'File yang diunggah harus berupa gambar, bukan dokumen seperti PDF atau Word.',
             'thumbnail.mimes' => 'Format gambar harus JPG, PNG, JPEG.',
             'thumbnail.max' => 'Ukuran gambar maksimal 2MB.',
+            'tanggal_publish.required' => 'Tanggal publish wajib diisi.',
+            'tanggal_publish.date' => 'Format tanggal publish tidak valid.',
+            'tanggal_publish.date_format' => 'Format tanggal publish harus YYYY-MM-DD.',
+            'tanggal_publish.after_or_equal' => 'Tanggal publish tidak boleh sebelum hari ini.',
         ]);
 
         if ($request->hasFile('thumbnail')) {

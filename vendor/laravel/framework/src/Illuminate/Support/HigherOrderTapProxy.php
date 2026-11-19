@@ -2,22 +2,19 @@
 
 namespace Illuminate\Support;
 
-/**
- * @template TTarget
- */
 class HigherOrderTapProxy
 {
     /**
      * The target being tapped.
      *
-     * @var TTarget
+     * @var mixed
      */
     public $target;
 
     /**
      * Create a new tap proxy instance.
      *
-     * @param  TTarget  $target
+     * @param  mixed  $target
      */
     public function __construct($target)
     {
@@ -29,7 +26,7 @@ class HigherOrderTapProxy
      *
      * @param  string  $method
      * @param  array  $parameters
-     * @return TTarget
+     * @return mixed
      */
     public function __call($method, $parameters)
     {

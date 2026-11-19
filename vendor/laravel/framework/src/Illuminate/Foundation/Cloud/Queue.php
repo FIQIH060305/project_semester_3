@@ -8,9 +8,8 @@ use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Stringable;
+use Illuminate\Support\Str;
 use Illuminate\Support\Traits\ForwardsCalls;
 use Symfony\Component\Console\Input\ArgvInput;
 
@@ -93,46 +92,6 @@ class Queue implements QueueContract, ClearableQueue
     public function reservedSize($queue = null)
     {
         return $this->queue->reservedSize(...func_get_args());
-    }
-
-    /**
-     * Get the number of jobs across every managed queue.
-     *
-     * @return int
-     */
-    public function totalSize()
-    {
-        return (new Collection($this->managedQueues()))->sum(fn ($queue) => $this->size($queue));
-    }
-
-    /**
-     * Get the number of pending jobs across every managed queue.
-     *
-     * @return int
-     */
-    public function totalPendingSize()
-    {
-        return (new Collection($this->managedQueues()))->sum(fn ($queue) => $this->pendingSize($queue));
-    }
-
-    /**
-     * Get the number of delayed jobs across every managed queue.
-     *
-     * @return int
-     */
-    public function totalDelayedSize()
-    {
-        return (new Collection($this->managedQueues()))->sum(fn ($queue) => $this->delayedSize($queue));
-    }
-
-    /**
-     * Get the number of reserved jobs across every managed queue.
-     *
-     * @return int
-     */
-    public function totalReservedSize()
-    {
-        return (new Collection($this->managedQueues()))->sum(fn ($queue) => $this->reservedSize($queue));
     }
 
     /**
@@ -282,7 +241,6 @@ class Queue implements QueueContract, ClearableQueue
             fn (string $status, ?int $delay) => $this->reportJobStatusToAgent(
                 $messageId, $receiptHandle, $status, $delay
             ),
-            $this->config['connection']['overflow'] ?? [],
         );
     }
 
@@ -561,24 +519,12 @@ class Queue implements QueueContract, ClearableQueue
         $prefix = $this->config['connection']['prefix'] ?? null;
         $suffix = $this->config['connection']['suffix'] ?? null;
 
-        return (new Stringable($this->queue->getQueue($queue)))
+        return Str::of($this->queue->getQueue($queue))
             ->when($prefix, fn ($str) => $str->chopStart($prefix.'/'))
             ->when($suffix, fn ($str) => $str->endsWith('.fifo')
                 ? $str->chopEnd('.fifo')->chopEnd($suffix)->append('.fifo')
                 : $str->chopEnd($suffix))
             ->toString();
-    }
-
-    /**
-     * Get the names of the managed queues configured for this connection.
-     *
-     * @return array<int, string>
-     */
-    public function managedQueues()
-    {
-        $queues = $this->config['queues'] ?? [];
-
-        return array_is_list($queues) ? $queues : array_keys($queues);
     }
 
     /**

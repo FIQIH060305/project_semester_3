@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -16,6 +16,8 @@
                 bg: '#F5F8FC',
                 card: '#FFFFFF',
                 border: '#E5EAF3',
+                soft: '#E5EAF3',
+                deep: '#1a2540',
                 purple: '#8B5CF6',
                 warm: '#F59E0B',
                 rose: '#EF4444'

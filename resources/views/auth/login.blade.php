@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -78,9 +78,6 @@
                         </button>
                     </div>
                 </div>
-                <div class="text-right">
-                    <a href="#" class="text-[11px] text-brand font-semibold hover:underline">Lupa Password?</a>
-                </div>
                 <button type="submit" class="w-full py-2.5 bg-brand hover:bg-brand-dark text-white font-bold text-xs rounded-lg transition shadow-md shadow-brand/30">
                     Login
                 </button>
@@ -91,7 +88,6 @@
             </p>
         </div>
     </div>
-
     <script>
         function togglePassword() {
             const input = document.getElementById('passwordInput');
