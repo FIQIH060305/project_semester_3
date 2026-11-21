@@ -7,9 +7,11 @@ use App\Models\JadwalOlahraga;
 use App\Models\JenisOlahraga;
 use App\Models\KontenEdukasi;
 use App\Models\Notifikasi;
+use App\Models\RiwayatBeratBadan;
 use App\Models\RiwayatOlahraga;
 use App\Models\Target;
 use App\Support\Antropometri;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -23,6 +25,41 @@ class MobileDataController extends Controller
         return str_starts_with($path, 'http')
             ? $path
             : asset('storage/' . ltrim($path, '/'));
+    }
+
+    /**
+     * Helper: Simpan/perbarui 1 catatan berat badan per tanggal (anti-duplikat)
+     */
+    private function upsertBeratHarian($akun, float $berat, float $tinggi, string $tanggalStr): RiwayatBeratBadan
+    {
+        $bmi = Antropometri::imt($berat, $tinggi);
+
+        $existingRows = RiwayatBeratBadan::where('id_akun', $akun->id_akun)
+            ->whereDate('tanggal_pencatatan', $tanggalStr)
+            ->orderByDesc('id_log_berat')
+            ->get();
+
+        if ($existingRows->isNotEmpty()) {
+            $primary = $existingRows->first();
+            $primary->update([
+                'berat_badan' => round($berat, 2),
+                'bmi'         => $bmi,
+            ]);
+
+            if ($existingRows->count() > 1) {
+                $duplicateIds = $existingRows->skip(1)->pluck('id_log_berat');
+                RiwayatBeratBadan::whereIn('id_log_berat', $duplicateIds)->delete();
+            }
+
+            return $primary->fresh();
+        }
+
+        return RiwayatBeratBadan::create([
+            'id_akun'            => $akun->id_akun,
+            'berat_badan'        => round($berat, 2),
+            'bmi'                => $bmi,
+            'tanggal_pencatatan' => $tanggalStr,
+        ]);
     }
 
     /**
@@ -84,12 +121,12 @@ class MobileDataController extends Controller
             'success' => true,
             'data' => [
                 'user' => [
-                    'id_akun'          => $akun->id_akun,
-                    'nama_lengkap'     => $akun->nama_lengkap,
-                    'email'            => $akun->email,
-                    'tinggi_badan'     => (float) $akun->tinggi_badan,
-                    'berat_sekarang'   => $beratSekarang,
-                    'foto_profil'      => $this->resolveFotoUrl($akun->foto_profil),
+                    'id_akun'        => $akun->id_akun,
+                    'nama_lengkap'   => $akun->nama_lengkap,
+                    'email'          => $akun->email,
+                    'tinggi_badan'   => (float) $akun->tinggi_badan,
+                    'berat_sekarang' => $beratSekarang,
+                    'foto_profil'    => $this->resolveFotoUrl($akun->foto_profil),
                 ],
                 'target' => $target ? [
                     'berat_awal'     => (float) $target->berat_awal,
@@ -105,6 +142,312 @@ class MobileDataController extends Controller
                 'total_sesi_bulan_ini' => $totalSesiBulanIni,
                 'grafik_7_hari'        => $grafik7Hari,
             ],
+        ]);
+    }
+
+    /**
+     * 1B. PEMANTAUAN PROGRES BERAT BADAN MINGGUAN (SENIN - MINGGU)
+     */
+    public function beratBadanMingguan(Request $request)
+    {
+        $akun = $request->user();
+        $tz = 'Asia/Jakarta';
+        $nowLocal = Carbon::now($tz);
+
+        $weekOffset = (int) $request->query('week_offset', 0);
+        if ($weekOffset > 0) {
+            $weekOffset = 0;
+        }
+
+        $startOfWeek = $nowLocal->copy()
+            ->startOfWeek(Carbon::MONDAY)
+            ->addWeeks($weekOffset)
+            ->startOfDay();
+        $endOfWeek = $startOfWeek->copy()
+            ->endOfWeek(Carbon::SUNDAY)
+            ->endOfDay();
+
+        $startDateStr = $startOfWeek->toDateString();
+        $endDateStr   = $endOfWeek->toDateString();
+
+        // Cek apakah user pernah punya catatan berat badan
+        $totalSemuaCatatan = RiwayatBeratBadan::where('id_akun', $akun->id_akun)->count();
+
+        // Berat valid terakhir SEBELUM Senin minggu ini (menjadi baseline otomatis minggu baru)
+        $catatanSebelumMinggu = RiwayatBeratBadan::where('id_akun', $akun->id_akun)
+            ->whereDate('tanggal_pencatatan', '<', $startDateStr)
+            ->orderByDesc('tanggal_pencatatan')
+            ->orderByDesc('id_log_berat')
+            ->first();
+
+        $baselineSebelumMinggu = $catatanSebelumMinggu
+            ? (float) $catatanSebelumMinggu->berat_badan
+            : null;
+
+        // Ambil seluruh catatan pada minggu terpilih (1 data terbaru per tanggal)
+        $catatanMingguIni = RiwayatBeratBadan::where('id_akun', $akun->id_akun)
+            ->whereDate('tanggal_pencatatan', '>=', $startDateStr)
+            ->whereDate('tanggal_pencatatan', '<=', $endDateStr)
+            ->orderBy('tanggal_pencatatan')
+            ->orderByDesc('id_log_berat')
+            ->get()
+            ->unique(function ($item) {
+                return Carbon::parse($item->tanggal_pencatatan)->toDateString();
+            })
+            ->keyBy(function ($item) {
+                return Carbon::parse($item->tanggal_pencatatan)->toDateString();
+            });
+
+        // Ambil seluruh aktivitas olahraga pada minggu terpilih untuk korelasi
+        $aktivitasMingguIni = RiwayatOlahraga::where('id_akun', $akun->id_akun)
+            ->whereDate('tanggal_waktu', '>=', $startDateStr)
+            ->whereDate('tanggal_waktu', '<=', $endDateStr)
+            ->get()
+            ->groupBy(function ($item) {
+                return Carbon::parse($item->tanggal_waktu)->toDateString();
+            });
+
+        $namaHariPendek = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+        $namaHariLengkap = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+        $lastValidWeight = $baselineSebelumMinggu;
+        $beratAwalMinggu = $baselineSebelumMinggu;
+        $beratTerakhirMinggu = null;
+        $jumlahHariDitimbang = 0;
+
+        $totalLangkahMinggu = 0;
+        $totalJarakMinggu = 0.0;
+        $totalKaloriMinggu = 0.0;
+        $totalDurasiDetikMinggu = 0;
+        $hariAktifOlahraga = 0;
+
+        $hariList = [];
+
+        for ($i = 0; $i < 7; $i++) {
+            $currentDay = $startOfWeek->copy()->addDays($i);
+            $dateStr = $currentDay->toDateString();
+            $isToday = $dateStr === $nowLocal->toDateString();
+            $isFuture = $currentDay->gt($nowLocal->copy()->endOfDay());
+
+            // Hitung aktivitas hari tersebut
+            $logsAktivitas = $aktivitasMingguIni->get($dateStr, collect());
+            $langkahHari = (int) $logsAktivitas->sum('jumlah_langkah');
+            $jarakHari = round((float) $logsAktivitas->sum('jarak_km'), 2);
+            $kaloriHari = round((float) $logsAktivitas->sum('kalori_terbakar'), 1);
+            $sesiHari = $logsAktivitas->count();
+
+            $detikHari = 0;
+            foreach ($logsAktivitas as $act) {
+                $parts = explode(':', (string) ($act->durasi_waktu ?? '00:00:00'));
+                $detikHari += ((int) ($parts[0] ?? 0) * 3600)
+                    + ((int) ($parts[1] ?? 0) * 60)
+                    + (int) ($parts[2] ?? 0);
+            }
+
+            if ($sesiHari > 0 || $langkahHari > 0) {
+                $hariAktifOlahraga++;
+            }
+
+            $totalLangkahMinggu += $langkahHari;
+            $totalJarakMinggu += $jarakHari;
+            $totalKaloriMinggu += $kaloriHari;
+            $totalDurasiDetikMinggu += $detikHari;
+
+            // Hitung berat badan & selisih harian
+            $recordBerat = $catatanMingguIni->get($dateStr);
+            $beratHari = null;
+            $selisihKg = null;
+            $selisihGram = null;
+            $arah = 'kosong';
+
+            if ($recordBerat) {
+                $beratHari = round((float) $recordBerat->berat_badan, 2);
+                $jumlahHariDitimbang++;
+
+                if ($beratAwalMinggu === null) {
+                    $beratAwalMinggu = $beratHari;
+                }
+
+                if ($lastValidWeight !== null) {
+                    $selisihKg = round($beratHari - $lastValidWeight, 3);
+                    $selisihGram = (int) round($selisihKg * 1000);
+                    if ($selisihGram < 0) {
+                        $arah = 'turun';
+                    } elseif ($selisihGram > 0) {
+                        $arah = 'naik';
+                    } else {
+                        $arah = 'tetap';
+                    }
+                } else {
+                    $selisihKg = 0.0;
+                    $selisihGram = 0;
+                    $arah = 'awal';
+                }
+
+                $lastValidWeight = $beratHari;
+                $beratTerakhirMinggu = $beratHari;
+            }
+
+            $hariList[] = [
+                'hari_pendek'  => $namaHariPendek[$i],
+                'hari_lengkap' => $namaHariLengkap[$i],
+                'tanggal'      => $dateStr,
+                'tanggal_label'=> $currentDay->translatedFormat('d M'),
+                'is_today'     => $isToday,
+                'is_future'    => $isFuture,
+                'berat_badan'  => $beratHari,
+                'selisih_kg'   => $selisihKg,
+                'selisih_gram' => $selisihGram,
+                'arah'         => $arah,
+                'aktivitas'    => [
+                    'langkah'      => $langkahHari,
+                    'jarak_km'     => $jarakHari,
+                    'kalori'       => $kaloriHari,
+                    'durasi_menit' => (int) round($detikHari / 60),
+                    'jumlah_sesi'  => $sesiHari,
+                ],
+            ];
+        }
+
+        // Jika minggu ini belum ada penimbangan baru, berat akhir referensi menggunakan awal minggu (baseline)
+        if ($beratTerakhirMinggu === null) {
+            $beratTerakhirMinggu = $beratAwalMinggu;
+        }
+
+        $totalPerubahanKg = 0.0;
+        $totalPerubahanGram = 0;
+        $arahMingguan = 'tetap';
+
+        if ($beratAwalMinggu !== null && $beratTerakhirMinggu !== null && $jumlahHariDitimbang > 0) {
+            $totalPerubahanKg = round($beratTerakhirMinggu - $beratAwalMinggu, 3);
+            $totalPerubahanGram = (int) round($totalPerubahanKg * 1000);
+            if ($totalPerubahanGram < 0) {
+                $arahMingguan = 'turun';
+            } elseif ($totalPerubahanGram > 0) {
+                $arahMingguan = 'naik';
+            }
+        }
+
+        // Bangun riwayat ringkasan minggu-minggu sebelumnya (maks 8 minggu terakhir)
+        $earliestRecord = RiwayatBeratBadan::where('id_akun', $akun->id_akun)
+            ->orderBy('tanggal_pencatatan')
+            ->first();
+
+        $riwayatMingguan = [];
+        $earliestWeekStart = $earliestRecord
+            ? Carbon::parse($earliestRecord->tanggal_pencatatan, $tz)->startOfWeek(Carbon::MONDAY)->startOfDay()
+            : $nowLocal->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+
+        for ($w = 0; $w >= -7; $w--) {
+            $wStart = $nowLocal->copy()->startOfWeek(Carbon::MONDAY)->addWeeks($w)->startOfDay();
+            $wEnd   = $wStart->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay();
+
+            if ($w < 0 && $wEnd->lt($earliestWeekStart)) {
+                break;
+            }
+
+            $wStartStr = $wStart->toDateString();
+            $wEndStr   = $wEnd->toDateString();
+
+            $prevW = RiwayatBeratBadan::where('id_akun', $akun->id_akun)
+                ->whereDate('tanggal_pencatatan', '<', $wStartStr)
+                ->orderByDesc('tanggal_pencatatan')
+                ->orderByDesc('id_log_berat')
+                ->first();
+
+            $logsW = RiwayatBeratBadan::where('id_akun', $akun->id_akun)
+                ->whereDate('tanggal_pencatatan', '>=', $wStartStr)
+                ->whereDate('tanggal_pencatatan', '<=', $wEndStr)
+                ->orderBy('tanggal_pencatatan')
+                ->orderBy('id_log_berat')
+                ->get();
+
+            $wAwal = $prevW
+                ? (float) $prevW->berat_badan
+                : ($logsW->isNotEmpty() ? (float) $logsW->first()->berat_badan : null);
+
+            $wAkhir = $logsW->isNotEmpty()
+                ? (float) $logsW->last()->berat_badan
+                : $wAwal;
+
+            $wDiffKg = ($wAwal !== null && $wAkhir !== null && $logsW->isNotEmpty())
+                ? round($wAkhir - $wAwal, 3)
+                : 0.0;
+            $wDiffGram = (int) round($wDiffKg * 1000);
+            $wArah = $wDiffGram < 0 ? 'turun' : ($wDiffGram > 0 ? 'naik' : 'tetap');
+
+            $riwayatMingguan[] = [
+                'week_offset'    => $w,
+                'label_periode'  => $wStart->translatedFormat('d M') . ' - ' . $wEnd->translatedFormat('d M Y'),
+                'is_current'     => $w === 0,
+                'berat_awal'     => $wAwal,
+                'berat_akhir'    => $wAkhir,
+                'perubahan_kg'   => $wDiffKg,
+                'perubahan_gram' => $wDiffGram,
+                'arah'           => $wArah,
+                'hari_ditimbang' => $logsW->unique(fn ($r) => Carbon::parse($r->tanggal_pencatatan)->toDateString())->count(),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'week_offset'           => $weekOffset,
+                'periode_label'         => $startOfWeek->translatedFormat('d M') . ' - ' . $endOfWeek->translatedFormat('d M Y'),
+                'tanggal_mulai'         => $startDateStr,
+                'tanggal_selesai'       => $endDateStr,
+                'is_current_week'       => $weekOffset === 0,
+                'has_any_history'       => $totalSemuaCatatan > 0,
+                'jumlah_hari_ditimbang' => $jumlahHariDitimbang,
+                'berat_awal_minggu'     => $beratAwalMinggu,
+                'berat_terakhir_minggu' => $beratTerakhirMinggu,
+                'total_perubahan_kg'    => $totalPerubahanKg,
+                'total_perubahan_gram'  => $totalPerubahanGram,
+                'arah_mingguan'         => $arahMingguan,
+                'hari_list'             => $hariList,
+                'aktivitas_mingguan'    => [
+                    'total_langkah'      => $totalLangkahMinggu,
+                    'total_jarak_km'     => round($totalJarakMinggu, 2),
+                    'total_kalori'       => round($totalKaloriMinggu, 1),
+                    'total_durasi_menit' => (int) round($totalDurasiDetikMinggu / 60),
+                    'hari_aktif'         => $hariAktifOlahraga,
+                ],
+                'riwayat_mingguan'      => $riwayatMingguan,
+            ],
+        ]);
+    }
+
+    /**
+     * 1C. CATAT / PERBARUI BERAT BADAN HARIAN (ANTI DUPLIKAT TANGGAL SAMA)
+     */
+    public function storeBeratBadan(Request $request)
+    {
+        $akun = $request->user();
+        $tz = 'Asia/Jakarta';
+        $todayLocal = Carbon::now($tz)->toDateString();
+
+        $validated = $request->validate([
+            'berat_badan'        => ['required', 'numeric', 'min:30', 'max:250'],
+            'tanggal_pencatatan' => ['nullable', 'date', 'before_or_equal:' . $todayLocal],
+        ]);
+
+        $berat = round((float) $validated['berat_badan'], 2);
+        $tanggalStr = !empty($validated['tanggal_pencatatan'])
+            ? Carbon::parse($validated['tanggal_pencatatan'])->toDateString()
+            : $todayLocal;
+
+        $tinggi = (float) ($akun->tinggi_badan ?: 170);
+
+        $record = $this->upsertBeratHarian($akun, $berat, $tinggi, $tanggalStr);
+
+        if (empty($akun->berat_badan_awal) || (float) $akun->berat_badan_awal <= 0) {
+            $akun->update(['berat_badan_awal' => $berat]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Berat badan tanggal ' . Carbon::parse($tanggalStr)->translatedFormat('d M Y') . ' berhasil disimpan!',
+            'data'    => $record,
         ]);
     }
 
@@ -226,7 +569,6 @@ class MobileDataController extends Controller
             $updateData['nama_lengkap'] = $validated['nama_lengkap'];
         }
 
-        // Proses unggah foto profil baru dari HP
         if ($request->hasFile('foto_profil')) {
             if (!empty($akun->foto_profil) && Storage::disk('public')->exists($akun->foto_profil)) {
                 Storage::disk('public')->delete($akun->foto_profil);
@@ -242,11 +584,8 @@ class MobileDataController extends Controller
 
         $akun->update($updateData);
 
-        $akun->riwayatBeratBadan()->create([
-            'berat_badan'        => $berat,
-            'bmi'                => Antropometri::imt($berat, $tinggi),
-            'tanggal_pencatatan' => today(),
-        ]);
+        $todayStr = Carbon::now('Asia/Jakarta')->toDateString();
+        $this->upsertBeratHarian($akun, $berat, $tinggi, $todayStr);
 
         $targetAktif = $akun->targetAktif;
         if ($targetAktif) {
@@ -267,47 +606,187 @@ class MobileDataController extends Controller
             'success' => true,
             'message' => 'Profil & foto berhasil diperbarui!',
             'user'    => [
-                'id_akun'          => $freshAkun->id_akun,
-                'nama_lengkap'     => $freshAkun->nama_lengkap,
-                'email'            => $freshAkun->email,
-                'jenis_kelamin'    => $freshAkun->jenis_kelamin,
-                'usia'             => $freshAkun->usia,
-                'tinggi_badan'     => (float) $freshAkun->tinggi_badan,
-                'berat_sekarang'   => $berat,
-                'foto_profil'      => $this->resolveFotoUrl($freshAkun->foto_profil),
-                'target_aktif'     => $freshAkun->targetAktif,
+                'id_akun'        => $freshAkun->id_akun,
+                'nama_lengkap'   => $freshAkun->nama_lengkap,
+                'email'          => $freshAkun->email,
+                'jenis_kelamin'  => $freshAkun->jenis_kelamin,
+                'usia'           => $freshAkun->usia,
+                'tinggi_badan'   => (float) $freshAkun->tinggi_badan,
+                'berat_sekarang' => $berat,
+                'foto_profil'    => $this->resolveFotoUrl($freshAkun->foto_profil),
+                'target_aktif'   => $freshAkun->targetAktif,
             ],
         ]);
     }
 
     /**
-     * 5. JADWAL OLAHRAGA, KONTEN EDUKASI & NOTIFIKASI
+     * 5. JADWAL OLAHRAGA (GET, POST, TOGGLE SELESAI, DELETE)
      */
     public function jadwal(Request $request)
     {
         $jadwal = JadwalOlahraga::with('jenisOlahraga')
             ->where('id_akun', $request->user()->id_akun)
-            ->orderBy('tanggal_jadwal')
-            ->get();
+            ->orderBy('tanggal_tugas')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id_jadwal'      => $item->id_jadwal,
+                    'tugas'          => $item->tugas,
+                    'jenis_olahraga' => $item->jenisOlahraga->nama_jenis ?? 'Umum',
+                    'sumber'         => $item->sumber ?? 'user',
+                    'tanggal_tugas'  => $item->tanggal_tugas,
+                    'status'         => $item->status ?? 'belum',
+                    'selesai'        => strtolower((string) $item->status) === 'selesai',
+                ];
+            });
 
         return response()->json(['success' => true, 'data' => $jadwal]);
     }
 
+    public function storeJadwal(Request $request)
+    {
+        $akun = $request->user();
+
+        $validated = $request->validate([
+            'tugas'          => ['required', 'string', 'max:255'],
+            'jenis_olahraga' => ['nullable', 'string', 'max:100'],
+            'tanggal_tugas'  => ['required', 'date'],
+        ]);
+
+        $namaJenis = $validated['jenis_olahraga'] ?? 'Lari';
+        $jenis = JenisOlahraga::where('nama_jenis', 'like', "%{$namaJenis}%")->first()
+            ?? JenisOlahraga::first();
+
+        if (!$jenis) {
+            $jenis = JenisOlahraga::create([
+                'nama_jenis' => 'Lari',
+                'met'        => 8.0,
+            ]);
+        }
+
+        $jadwal = JadwalOlahraga::create([
+            'id_akun'       => $akun->id_akun,
+            'id_jenis'      => $jenis->id_jenis,
+            'id_admin'      => null,
+            'sumber'        => 'user',
+            'tugas'         => $validated['tugas'],
+            'tanggal_tugas' => $validated['tanggal_tugas'],
+            'status'        => 'belum',
+        ]);
+
+        Notifikasi::create([
+            'id_jadwal'     => $jadwal->id_jadwal,
+            'pesan'         => 'Jadwal latihan baru: ' . $jadwal->tugas . ' pada ' . $jadwal->tanggal_tugas,
+            'waktu_kirim'   => now(),
+            'status_dibaca' => false,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Jadwal olahraga berhasil ditambahkan!',
+            'data'    => $jadwal->load('jenisOlahraga'),
+        ], 201);
+    }
+
+    public function toggleJadwal(Request $request, $id)
+    {
+        $jadwal = JadwalOlahraga::where('id_akun', $request->user()->id_akun)
+            ->where('id_jadwal', $id)
+            ->firstOrFail();
+
+        $sudahSelesai = strtolower((string) $jadwal->status) === 'selesai';
+        $jadwal->status = $sudahSelesai ? 'belum' : 'selesai';
+        $jadwal->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status jadwal diperbarui.',
+            'status'  => $jadwal->status,
+            'selesai' => !$sudahSelesai,
+        ]);
+    }
+
+    public function destroyJadwal(Request $request, $id)
+    {
+        $jadwal = JadwalOlahraga::where('id_akun', $request->user()->id_akun)
+            ->where('id_jadwal', $id)
+            ->firstOrFail();
+
+        $jadwal->notifikasi()->delete();
+        $jadwal->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Jadwal berhasil dihapus.',
+        ]);
+    }
+
+    /**
+     * 6. KONTEN EDUKASI & NOTIFIKASI
+     */
     public function edukasi()
     {
-        $konten = KontenEdukasi::latest()->get();
+        $konten = KontenEdukasi::published()
+            ->orderByDesc('tanggal_publish')
+            ->orderByDesc('id_konten')
+            ->get()
+            ->map(function ($item) {
+                $thumbUrl = null;
+                if (!empty($item->thumbnail)) {
+                    $thumbUrl = str_starts_with($item->thumbnail, 'http')
+                        ? $item->thumbnail
+                        : asset('storage/' . ltrim($item->thumbnail, '/'));
+                }
+
+                return [
+                    'id_konten'         => $item->id_konten,
+                    'tipe_konten'       => $item->tipe_konten ?? 'video',
+                    'judul'             => $item->judul,
+                    'deskripsi'         => $item->deskripsi,
+                    'url_video_youtube' => $item->url_video_youtube,
+                    'thumbnail'         => $thumbUrl,
+                    'konten_teks'       => $item->konten_teks,
+                    'kategori'          => $item->kategori ?? 'Olahraga',
+                    'tanggal_publish'   => $item->tanggal_publish?->toDateString(),
+                ];
+            });
+
         return response()->json(['success' => true, 'data' => $konten]);
     }
 
     public function notifikasi(Request $request)
     {
         $akunId = $request->user()->id_akun;
-        $notif = Notifikasi::whereHas('jadwal', function ($q) use ($akunId) {
+        $notif = Notifikasi::with('jadwal')
+            ->whereHas('jadwal', function ($q) use ($akunId) {
                 $q->where('id_akun', $akunId);
             })
             ->latest('waktu_kirim')
-            ->get();
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id_notifikasi' => $item->id_notifikasi,
+                    'id_jadwal'     => $item->id_jadwal,
+                    'judul'         => $item->jadwal->tugas ?? 'Pengingat Latihan GERAK',
+                    'pesan'         => $item->pesan,
+                    'waktu_kirim'   => $item->waktu_kirim?->toIso8601String(),
+                    'status_dibaca' => (bool) $item->status_dibaca,
+                ];
+            });
 
         return response()->json(['success' => true, 'data' => $notif]);
+    }
+
+    public function tandaiNotifikasiDibaca(Request $request)
+    {
+        $akunId = $request->user()->id_akun;
+        Notifikasi::whereHas('jadwal', function ($q) use ($akunId) {
+            $q->where('id_akun', $akunId);
+        })->update(['status_dibaca' => true]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Semua notifikasi ditandai sudah dibaca.',
+        ]);
     }
 }

@@ -24,7 +24,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/mobile/aktivitas', [MobileDataController::class, 'indexAktivitas']);
     Route::post('/mobile/aktivitas', [MobileDataController::class, 'storeAktivitas']);
     Route::post('/mobile/profile/update', [MobileDataController::class, 'updateProfile']);
+
+    // Pemantauan Berat Badan Mingguan (Senin - Minggu)
+    Route::get('/mobile/berat-badan/mingguan', [MobileDataController::class, 'beratBadanMingguan']);
+    Route::post('/mobile/berat-badan/catat', [MobileDataController::class, 'storeBeratBadan']);
+
+    // Jadwal Olahraga (CRUD + Toggle Selesai)
     Route::get('/mobile/jadwal', [MobileDataController::class, 'jadwal']);
+    Route::post('/mobile/jadwal', [MobileDataController::class, 'storeJadwal']);
+    Route::patch('/mobile/jadwal/{id}/toggle', [MobileDataController::class, 'toggleJadwal']);
+    Route::delete('/mobile/jadwal/{id}', [MobileDataController::class, 'destroyJadwal']);
+
+    // Edukasi & Notifikasi
     Route::get('/mobile/edukasi', [MobileDataController::class, 'edukasi']);
     Route::get('/mobile/notifikasi', [MobileDataController::class, 'notifikasi']);
+    Route::post('/mobile/notifikasi/baca', [MobileDataController::class, 'tandaiNotifikasiDibaca']);
 });
